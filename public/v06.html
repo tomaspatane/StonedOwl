@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StonedOwl v0.6</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+<header class="top"><div class="brand"><div class="logo">🦉</div><div><h1>StonedOwl</h1><div class="sub">Social listening con fuentes abiertas</div></div></div><div class="ver">WEB · V0.6</div></header>
+<section class="panel search"><h2>¿Qué querés escuchar?</h2><p>Buscá una persona, organización, tema o conflicto. StonedOwl consulta fuentes abiertas y las convierte en un tablero.</p><div class="row"><input id="q" placeholder='Ej.: hospitales CABA, subte, alquileres, Milei' autofocus><select id="span"><option value="1d">Últimas 24 h</option><option value="3d">Últimos 3 días</option><option value="1w" selected>Últimos 7 días</option><option value="1m">Último mes</option></select><select id="scope"><option value="argentina" selected>Medios argentinos</option><option value="world">Todo el mundo</option></select><button id="go">Escuchar</button></div><div class="status"><span class="dot" id="dot"></span><span id="status">Escribí un tema para empezar.</span></div></section>
+<section class="metrics"><div class="metric"><span>Resultados</span><b id="m1">—</b><small>noticias</small></div><div class="metric"><span>Medios</span><b id="m2">—</b><small>fuentes distintas</small></div><div class="metric"><span>Período</span><b id="m3">—</b><small>seleccionado</small></div><div class="metric"><span>Fuentes activas</span><b id="m4">—</b><small>backend</small></div></section>
+<main class="layout"><article class="card"><div class="head"><h3>Noticias encontradas</h3><span id="label">Sin búsqueda</span></div><div class="list" id="articles"><div class="empty"><strong>Probemos con “Milei”</strong>Los resultados van a aparecer acá.</div></div></article><aside class="right"><article class="card"><div class="head"><h3>Medios con más resultados</h3><span>muestra actual</span></div><div class="body" id="media"><div class="empty"><strong>Fuentes</strong>Acá vas a ver qué medios concentran la cobertura.</div></div></article><article class="card"><div class="head"><h3>Diagnóstico</h3><span>fuentes</span></div><div class="body"><div class="callout" id="diag">Todavía no hicimos ninguna consulta.</div></div></article><article class="card"><div class="head"><h3>Google Trends</h3><span>comparación</span></div><div class="body"><p class="muted">Abrí el mismo término en Google Trends para comparar interés de búsqueda en Argentina.</p><a class="btn" id="trends" href="https://trends.google.com/trends/" target="_blank" rel="noopener">Abrir Google Trends ↗</a></div></article></aside></main>
+<footer>StonedOwl v0.6 · GDELT + Google News como respaldo. Cobertura monitoreada ≠ toda Internet.</footer>
+</div>
+<script src="app-v06.js"></script>
+</body>
+</html>
