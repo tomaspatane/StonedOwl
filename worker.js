@@ -1,11 +1,11 @@
 const SPAN_MAP = { '1d': '1d', '3d': '3d', '1w': '7d', '1m': '30d' };
 
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
+  return new Response(JSON.stringify(data, null, 2), {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'public, max-age=60'
+      'cache-control': 'no-store'
     }
   });
 }
@@ -26,9 +26,19 @@ function tag(block, name) {
   return m ? decodeXml(m[1]) : '';
 }
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort('timeout'), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchGdelt(q, scope, span) {
   let query = q;
-  if (scope === 'argentina') query += ' sourcecountry:AR sourcelang:spanish';
+  if (scope === 'argentina') query += ' sourcecountry:argentina sourcelang:spanish searchlang:spanish';
 
   const gdelt = new URL('https://api.gdeltproject.org/api/v2/doc/doc');
   gdelt.searchParams.set('query', query);
@@ -38,19 +48,16 @@ async function fetchGdelt(q, scope, span) {
   gdelt.searchParams.set('sort', 'DateDesc');
   gdelt.searchParams.set('timespan', SPAN_MAP[span] || '7d');
 
-  const r = await fetch(gdelt.toString(), {
-    headers: {
-      accept: 'application/json,text/plain;q=0.8,*/*;q=0.5',
-      'user-agent': 'Mozilla/5.0 (compatible; StonedOwl/0.6)'
-    }
+  const r = await fetchWithTimeout(gdelt.toString(), {
+    headers: { accept: 'application/json' }
   });
 
   const raw = await r.text();
-  if (!r.ok) throw new Error(`HTTP ${r.status}: ${raw.slice(0, 180)}`);
+  if (!r.ok) throw new Error(`HTTP ${r.status}: ${raw.slice(0, 220)}`);
 
   let data;
   try { data = JSON.parse(raw); }
-  catch { throw new Error(`respuesta no JSON: ${raw.slice(0, 180)}`); }
+  catch { throw new Error(`respuesta no JSON: ${raw.slice(0, 220)}`); }
 
   const articles = Array.isArray(data.articles) ? data.articles.map(a => ({
     title: a.title || 'Sin título',
@@ -60,7 +67,7 @@ async function fetchGdelt(q, scope, span) {
     provider: 'GDELT'
   })).filter(a => a.url) : [];
 
-  return { articles, query };
+  return { articles, query, url: gdelt.toString() };
 }
 
 async function fetchGoogleNews(q, scope, span) {
@@ -75,23 +82,26 @@ async function fetchGoogleNews(q, scope, span) {
   u.searchParams.set('gl', 'AR');
   u.searchParams.set('ceid', 'AR:es-419');
 
-  const r = await fetch(u.toString(), {
-    headers: { 'user-agent': 'Mozilla/5.0 (compatible; StonedOwl/0.6)' }
+  const r = await fetchWithTimeout(u.toString(), {
+    headers: { accept: 'application/rss+xml, application/xml, text/xml, */*' }
   });
   const xml = await r.text();
-  if (!r.ok) throw new Error(`HTTP ${r.status}: ${xml.slice(0, 180)}`);
+  if (!r.ok) throw new Error(`HTTP ${r.status}: ${xml.slice(0, 220)}`);
 
   const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].slice(0, 100);
   const articles = items.map(m => {
     const block = m[1];
-    const title = tag(block, 'title');
-    const url = tag(block, 'link');
-    const source = tag(block, 'source');
-    const date = tag(block, 'pubDate');
-    return { title, url, source, date, provider: 'Google News' };
+    return {
+      title: tag(block, 'title'),
+      url: tag(block, 'link'),
+      source: tag(block, 'source'),
+      date: tag(block, 'pubDate'),
+      provider: 'Google News'
+    };
   }).filter(a => a.url && a.title);
 
-  return { articles, query };
+  if (!articles.length) throw new Error(`RSS válido pero sin items. Inicio: ${xml.slice(0, 220)}`);
+  return { articles, query, url: u.toString() };
 }
 
 function dedupe(items) {
@@ -102,6 +112,33 @@ function dedupe(items) {
     seen.add(key);
     return true;
   });
+}
+
+async function handleHealth() {
+  const checks = { worker: { ok: true, time: new Date().toISOString() } };
+
+  try {
+    const r = await fetchWithTimeout('https://example.com/', { headers: { accept: 'text/html' } }, 8000);
+    checks.internet = { ok: r.ok, status: r.status };
+  } catch (e) {
+    checks.internet = { ok: false, error: String(e?.message || e) };
+  }
+
+  try {
+    const g = await fetchGdelt('milei', 'argentina', '1w');
+    checks.gdelt = { ok: true, count: g.articles.length, query: g.query };
+  } catch (e) {
+    checks.gdelt = { ok: false, error: String(e?.message || e) };
+  }
+
+  try {
+    const g = await fetchGoogleNews('milei', 'argentina', '1w');
+    checks.googleNews = { ok: true, count: g.articles.length, query: g.query };
+  } catch (e) {
+    checks.googleNews = { ok: false, error: String(e?.message || e) };
+  }
+
+  return json({ ok: true, checks });
 }
 
 async function handleNews(request) {
@@ -119,29 +156,22 @@ async function handleNews(request) {
 
   try {
     gdelt = await fetchGdelt(q, scope, span);
-    diagnostics.gdelt = { ok: true, count: gdelt.articles.length };
+    diagnostics.gdelt = { ok: true, count: gdelt.articles.length, query: gdelt.query };
   } catch (e) {
-    diagnostics.gdelt = { ok: false, error: String(e.message || e) };
+    diagnostics.gdelt = { ok: false, error: String(e?.message || e) };
   }
 
   try {
     google = await fetchGoogleNews(q, scope, span);
-    diagnostics.googleNews = { ok: true, count: google.articles.length };
+    diagnostics.googleNews = { ok: true, count: google.articles.length, query: google.query };
   } catch (e) {
-    diagnostics.googleNews = { ok: false, error: String(e.message || e) };
+    diagnostics.googleNews = { ok: false, error: String(e?.message || e) };
   }
 
   const articles = dedupe([...gdelt.articles, ...google.articles]);
-  if (!articles.length) {
-    return json({
-      error: 'Las fuentes no devolvieron resultados.',
-      diagnostics,
-      fetchedAt: new Date().toISOString()
-    }, 502);
-  }
-
   return json({
-    ok: true,
+    ok: articles.length > 0,
+    error: articles.length ? null : 'Las fuentes no devolvieron resultados.',
     query: q,
     scope,
     span,
@@ -149,12 +179,13 @@ async function handleNews(request) {
     articles,
     diagnostics,
     fetchedAt: new Date().toISOString()
-  });
+  }, 200);
 }
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === '/api/health') return handleHealth();
     if (url.pathname === '/api/news' || url.pathname === '/api/gdelt') return handleNews(request);
     return env.ASSETS.fetch(request);
   }
