@@ -10,14 +10,14 @@
 <div class="app">
   <header class="top">
     <div class="brand"><div class="logo">🦉</div><div><h1>StonedOwl</h1><div class="sub">Social listening con fuentes abiertas</div></div></div>
-    <div class="ver">WEB · V0.3</div>
+    <div class="ver">WEB · V0.4</div>
   </header>
 
   <section class="panel search">
     <h2>¿Qué querés escuchar?</h2>
     <p>Buscá una persona, organización, tema o conflicto. StonedOwl consulta cobertura periodística abierta y la convierte en un tablero.</p>
     <div class="row">
-      <input id="q" placeholder='Ej.: Milei, UBA, inflación, "Ley de Tierras"' autofocus>
+      <input id="q" placeholder='Ej.: hospitales CABA, subte, alquileres, Milei' autofocus>
       <select id="span">
         <option value="1d">Últimas 24 h</option>
         <option value="3d">Últimos 3 días</option>
@@ -43,7 +43,7 @@
   <main class="layout">
     <article class="card">
       <div class="head"><h3>Noticias encontradas</h3><span id="label">Sin búsqueda</span></div>
-      <div class="list" id="articles"><div class="empty"><strong>Probemos con “Milei”</strong>Los resultados van a aparecer acá.</div></div>
+      <div class="list" id="articles"><div class="empty"><strong>Probemos con “hospitales CABA”</strong>Los resultados van a aparecer acá.</div></div>
     </article>
 
     <aside class="right">
@@ -53,7 +53,7 @@
     </aside>
   </main>
 
-  <footer>StonedOwl v0.3 · Prototipo gratuito. GDELT representa cobertura monitoreada, no toda Internet.</footer>
+  <footer>StonedOwl v0.4 · Primera versión con backend propio para GDELT. Cobertura monitoreada ≠ toda Internet.</footer>
 </div>
 <script src="app.js"></script>
 </body>
