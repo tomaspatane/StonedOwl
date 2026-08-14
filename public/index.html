@@ -667,7 +667,11 @@ let lastRefresh = 0;
 let loading = false;
 
 function safe(value){
-  return String(value ?? '')
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = String(value ?? '');
+  const decoded = textarea.value;
+
+  return decoded
     .replaceAll('&','&amp;')
     .replaceAll('<','&lt;')
     .replaceAll('>','&gt;')
