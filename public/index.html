@@ -1,59 +1,1242 @@
-<!doctype html>
+ <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>StonedOwl v0.7</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>StonedOwl · En vivo</title>
+
+  <style>
+    :root{
+      --bg:#07100d;
+      --panel:#0d1713;
+      --panel2:#111d18;
+      --text:#f3f7f4;
+      --muted:#8fa39a;
+      --line:#213129;
+      --accent:#baff64;
+      --red:#ff7777;
+    }
+
+    *{box-sizing:border-box}
+
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at top right,#14251d 0,transparent 32%),
+        var(--bg);
+      color:var(--text);
+      font-family:Inter,Arial,sans-serif;
+    }
+
+    button,input,select{
+      font:inherit;
+    }
+
+    button{
+      cursor:pointer;
+    }
+
+    a{
+      color:inherit;
+    }
+
+    .app{
+      width:min(1280px,calc(100% - 32px));
+      margin:auto;
+      padding-bottom:60px;
+    }
+
+    .top{
+      min-height:82px;
+      display:flex;
+      align-items:center;
+      gap:24px;
+      border-bottom:1px solid var(--line);
+    }
+
+    .brand{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      margin-right:auto;
+    }
+
+    .logo{
+      width:42px;
+      height:42px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      display:grid;
+      place-items:center;
+      background:var(--panel);
+      font-size:22px;
+    }
+
+    h1,h2,h3,h4,p{
+      margin-top:0;
+    }
+
+    h1{
+      font-size:17px;
+      margin-bottom:2px;
+    }
+
+    .sub{
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .nav{
+      display:flex;
+      gap:6px;
+    }
+
+    .nav button{
+      border:1px solid transparent;
+      background:transparent;
+      color:var(--muted);
+      border-radius:10px;
+      padding:9px 13px;
+    }
+
+    .nav button.active{
+      background:var(--panel2);
+      border-color:var(--line);
+      color:var(--text);
+    }
+
+    .ver{
+      color:var(--muted);
+      font-size:11px;
+    }
+
+    .hero{
+      margin-top:34px;
+      padding:32px;
+      border:1px solid var(--line);
+      border-radius:20px;
+      background:linear-gradient(135deg,#101b17,#0a120f);
+    }
+
+    .eyebrow{
+      color:var(--accent);
+      letter-spacing:.16em;
+      font-size:11px;
+      font-weight:800;
+      margin-bottom:12px;
+    }
+
+    .hero h2{
+      font-size:clamp(38px,6vw,72px);
+      line-height:.95;
+      max-width:800px;
+      margin-bottom:16px;
+    }
+
+    .hero > p{
+      color:var(--muted);
+      max-width:750px;
+      line-height:1.55;
+    }
+
+    .search-row{
+      display:grid;
+      grid-template-columns:minmax(220px,1fr) auto auto auto;
+      gap:10px;
+      margin-top:24px;
+    }
+
+    input,select{
+      background:#08110e;
+      color:var(--text);
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:14px;
+      outline:none;
+    }
+
+    input:focus,select:focus{
+      border-color:#58715f;
+    }
+
+    .primary{
+      border:0;
+      border-radius:12px;
+      background:var(--accent);
+      color:#10200f;
+      padding:14px 18px;
+      font-weight:800;
+    }
+
+    .status{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      margin-top:16px;
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .dot{
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      background:#56655e;
+    }
+
+    .dot.ok{background:var(--accent)}
+    .dot.err{background:var(--red)}
+
+    .live-message{
+      margin-top:16px;
+      padding:14px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:#09110f;
+    }
+
+    .live-message strong{
+      display:block;
+      margin-bottom:5px;
+    }
+
+    .live-message span{
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .metrics{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:12px;
+      margin:16px 0;
+    }
+
+    .metric{
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:18px;
+      background:var(--panel);
+    }
+
+    .metric span,
+    .metric small{
+      display:block;
+      color:var(--muted);
+      font-size:11px;
+    }
+
+    .metric b{
+      display:block;
+      margin:10px 0 7px;
+      font-size:31px;
+    }
+
+    .layout{
+      display:grid;
+      grid-template-columns:minmax(0,1.65fr) minmax(280px,.75fr);
+      gap:16px;
+    }
+
+    .card{
+      border:1px solid var(--line);
+      border-radius:18px;
+      background:var(--panel);
+      overflow:hidden;
+    }
+
+    .head{
+      padding:18px 20px;
+      display:flex;
+      justify-content:space-between;
+      gap:15px;
+      align-items:center;
+      border-bottom:1px solid var(--line);
+    }
+
+    .head h3{
+      margin:0;
+      font-size:14px;
+    }
+
+    .head span{
+      color:var(--muted);
+      font-size:11px;
+    }
+
+    .article{
+      padding:18px 20px;
+      border-bottom:1px solid var(--line);
+    }
+
+    .article:last-child{
+      border-bottom:0;
+    }
+
+    .article h4{
+      margin-bottom:10px;
+      line-height:1.4;
+    }
+
+    .article a{
+      text-decoration:none;
+    }
+
+    .article a:hover{
+      color:var(--accent);
+    }
+
+    .meta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px 14px;
+      color:var(--muted);
+      font-size:11px;
+    }
+
+    .media{
+      color:var(--accent);
+    }
+
+    .right{
+      display:grid;
+      gap:16px;
+      align-content:start;
+    }
+
+    .body{
+      padding:18px;
+    }
+
+    .empty{
+      padding:28px 20px;
+      color:var(--muted);
+      line-height:1.5;
+    }
+
+    .empty strong{
+      color:var(--text);
+      display:block;
+      margin-bottom:8px;
+    }
+
+    .source{
+      padding:9px 0;
+      border-bottom:1px solid var(--line);
+      font-size:12px;
+    }
+
+    .source:last-child{
+      border-bottom:0;
+    }
+
+    .source.ok b{
+      color:var(--accent);
+    }
+
+    .source.off{
+      color:var(--muted);
+    }
+
+    .media-row{
+      margin-bottom:14px;
+    }
+
+    .media-label{
+      display:flex;
+      justify-content:space-between;
+      gap:15px;
+      font-size:12px;
+      margin-bottom:7px;
+    }
+
+    .bar{
+      height:5px;
+      background:#17241e;
+      border-radius:999px;
+      overflow:hidden;
+    }
+
+    .bar span{
+      display:block;
+      height:100%;
+      background:var(--accent);
+    }
+
+    .radar-grid{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:16px;
+      margin-top:18px;
+    }
+
+    .monitor{
+      border:1px solid var(--line);
+      background:var(--panel);
+      border-radius:18px;
+      padding:20px;
+      text-align:left;
+      color:var(--text);
+    }
+
+    .monitor:hover{
+      border-color:#466051;
+    }
+
+    .monitor h3{
+      margin:8px 0 18px;
+      font-size:21px;
+    }
+
+    .monitor-stats{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:10px;
+    }
+
+    .monitor-stats span{
+      display:block;
+      color:var(--muted);
+      font-size:10px;
+    }
+
+    .monitor-stats b{
+      display:block;
+      margin-top:4px;
+    }
+
+    .warning{
+      color:#ffd46e;
+    }
+
+    footer{
+      color:var(--muted);
+      font-size:11px;
+      margin-top:30px;
+      padding-top:20px;
+      border-top:1px solid var(--line);
+    }
+
+    [hidden]{
+      display:none !important;
+    }
+
+    @media(max-width:850px){
+      .search-row{
+        grid-template-columns:1fr 1fr;
+      }
+
+      .search-row input{
+        grid-column:1/-1;
+      }
+
+      .metrics{
+        grid-template-columns:1fr 1fr;
+      }
+
+      .layout{
+        grid-template-columns:1fr;
+      }
+
+      .radar-grid{
+        grid-template-columns:1fr;
+      }
+
+      .ver{
+        display:none;
+      }
+    }
+
+    @media(max-width:540px){
+      .app{
+        width:min(100% - 20px,1280px);
+      }
+
+      .top{
+        flex-wrap:wrap;
+        padding:12px 0;
+      }
+
+      .nav{
+        width:100%;
+      }
+
+      .nav button{
+        flex:1;
+      }
+
+      .hero{
+        padding:22px;
+        margin-top:20px;
+      }
+
+      .search-row{
+        grid-template-columns:1fr;
+      }
+
+      .search-row input{
+        grid-column:auto;
+      }
+
+      .metrics{
+        grid-template-columns:1fr 1fr;
+      }
+    }
+  </style>
 </head>
+
 <body>
 <div class="app">
+
   <header class="top">
-    <div class="brand"><div class="logo">🦉</div><div><h1>StonedOwl</h1><div class="sub">Social listening con fuentes abiertas</div></div></div>
-    <div class="ver">WEB · V0.7</div>
+    <div class="brand">
+      <div class="logo">🦉</div>
+      <div>
+        <h1>StonedOwl</h1>
+        <div class="sub">Sala de situación digital</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button id="liveTab" class="active">En vivo</button>
+      <button id="radarTab">Radar</button>
+    </nav>
+
+    <div class="ver">WEB · V0.9</div>
   </header>
 
-  <section class="panel search">
-    <h2>¿Qué querés escuchar?</h2>
-    <p>Buscá una persona, organización, tema o conflicto.</p>
-    <div class="row">
-      <input id="q" placeholder="Ej.: Milei, hospitales CABA, subte" autofocus>
-      <select id="span">
-        <option value="1d">Últimas 24 h</option>
-        <option value="3d">Últimos 3 días</option>
-        <option value="1w" selected>Últimos 7 días</option>
-        <option value="1m">Último mes</option>
-      </select>
-      <select id="scope">
-        <option value="argentina" selected>Medios argentinos</option>
-        <option value="world">Todo el mundo</option>
-      </select>
-      <button id="go">Escuchar</button>
-    </div>
-    <div class="status"><span class="dot" id="dot"></span><span id="status">Escribí un tema para empezar.</span></div>
+  <section id="liveView">
+
+    <section class="hero">
+      <div class="eyebrow">SEGUIMIENTO EN VIVO</div>
+
+      <h2>¿Qué está pasando ahora?</h2>
+
+      <p>
+        Escribí cualquier tema. StonedOwl consulta las fuentes disponibles
+        en ese momento y vuelve a revisar mientras tengas esta pantalla abierta.
+      </p>
+
+      <div class="search-row">
+        <input id="query" placeholder="Ej.: Milei, hospitales CABA, subte">
+
+        <select id="span">
+          <option value="1d">Últimas 24 horas</option>
+          <option value="3d">Últimos 3 días</option>
+          <option value="1w">Últimos 7 días</option>
+          <option value="1m">Último mes</option>
+        </select>
+
+        <select id="scope">
+          <option value="argentina">Argentina</option>
+          <option value="world">Todo el mundo</option>
+        </select>
+
+        <button class="primary" id="searchButton">
+          Seguir en vivo
+        </button>
+      </div>
+
+      <div class="status">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">Escribí un tema para empezar.</span>
+      </div>
+
+      <div class="live-message">
+        <strong id="changeText">Todavía no hay un seguimiento activo.</strong>
+        <span id="sessionText">
+          La búsqueda es inmediata. El Radar histórico sigue acumulando información aparte.
+        </span>
+      </div>
+    </section>
+
+    <section class="metrics">
+      <div class="metric">
+        <span>Resultados</span>
+        <b id="resultCount">—</b>
+        <small>recuperados ahora</small>
+      </div>
+
+      <div class="metric">
+        <span>Medios</span>
+        <b id="sourceCount">—</b>
+        <small>distintos</small>
+      </div>
+
+      <div class="metric">
+        <span>Fuentes activas</span>
+        <b id="providerCount">—</b>
+        <small id="providerNames">backend</small>
+      </div>
+
+      <div class="metric">
+        <span>Actualizado</span>
+        <b id="updatedTime">—</b>
+        <small>hora local</small>
+      </div>
+    </section>
+
+    <main class="layout">
+
+      <article class="card">
+        <div class="head">
+          <h3>Noticias más recientes</h3>
+          <span id="resultLabel">Sin seguimiento</span>
+        </div>
+
+        <div id="articles">
+          <div class="empty">
+            <strong>Elegí un tema</strong>
+            Los resultados actuales van a aparecer acá.
+          </div>
+        </div>
+      </article>
+
+      <aside class="right">
+
+        <article class="card">
+          <div class="head">
+            <h3>Medios con más resultados</h3>
+            <span>lectura actual</span>
+          </div>
+
+          <div class="body" id="mediaList">
+            <div class="empty">
+              <strong>Sin datos todavía</strong>
+              Acá veremos qué medios están cubriendo el tema.
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="head">
+            <h3>Estado de fuentes</h3>
+            <span>esta consulta</span>
+          </div>
+
+          <div class="body" id="diagnostics">
+            Todavía no consultamos las fuentes.
+          </div>
+        </article>
+
+      </aside>
+    </main>
+
   </section>
 
-  <section class="metrics">
-    <div class="metric"><span>Resultados</span><b id="m1">—</b><small>noticias</small></div>
-    <div class="metric"><span>Medios</span><b id="m2">—</b><small>fuentes distintas</small></div>
-    <div class="metric"><span>Período</span><b id="m3">—</b><small>seleccionado</small></div>
-    <div class="metric"><span>Fuentes activas</span><b id="m4">—</b><small id="m4sub">backend</small></div>
+  <section id="radarView" hidden>
+
+    <section class="hero">
+      <div class="eyebrow">RADAR HISTÓRICO</div>
+      <h2>Qué cambió en los temas que seguimos</h2>
+
+      <p>
+        Los monitores permanentes construyen historia automáticamente.
+        Esta pantalla no reemplaza el seguimiento en vivo: lo complementa.
+      </p>
+
+      <div class="status">
+        <span class="dot ok"></span>
+        <span id="radarStatus">Conectando con el Radar…</span>
+      </div>
+    </section>
+
+    <section class="radar-grid" id="radarCards">
+      <div class="empty">
+        Cargando monitores…
+      </div>
+    </section>
+
   </section>
 
-  <main class="layout">
-    <article class="card">
-      <div class="head"><h3>Noticias encontradas</h3><span id="label">Sin búsqueda</span></div>
-      <div class="list" id="articles"><div class="empty"><strong>Probemos con “Milei”</strong>Los resultados van a aparecer acá.</div></div>
-    </article>
-    <aside class="right">
-      <article class="card"><div class="head"><h3>Medios con más resultados</h3><span>muestra actual</span></div><div class="body" id="media"><div class="empty"><strong>Fuentes</strong>Acá vas a ver qué medios concentran la cobertura.</div></div></article>
-      <article class="card"><div class="head"><h3>Diagnóstico</h3><span>fuentes</span></div><div class="body"><div class="callout" id="diag">Bing News está disponible.</div></div></article>
-      <article class="card"><div class="head"><h3>Google Trends</h3></div><div class="body"><a class="btn" id="trends" href="https://trends.google.com/trends/" target="_blank" rel="noopener">Abrir Google Trends ↗</a></div></article>
-    </aside>
-  </main>
+  <footer>
+    StonedOwl v0.9 · resultados recuperados de fuentes abiertas.
+    La cantidad recuperada no equivale al volumen total de conversación pública.
+  </footer>
 
-  <footer>StonedOwl v0.7 · Bing News activo.</footer>
 </div>
-<script src="app.js"></script>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const REFRESH_MS = 120000;
+
+let currentSearch = null;
+let seen = new Set();
+let lastRefresh = 0;
+let loading = false;
+
+function safe(value){
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = String(value ?? '');
+  const decoded = textarea.value;
+
+  return decoded
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'","&#39;");
+}
+
+function formatDate(value){
+  if(!value) return '—';
+
+  const date = new Date(value);
+
+  if(Number.isNaN(date.getTime())){
+    return String(value);
+  }
+
+  return date.toLocaleString('es-AR',{
+    dateStyle:'short',
+    timeStyle:'short'
+  });
+}
+
+function formatTime(value){
+  const date = new Date(value || Date.now());
+
+  return date.toLocaleTimeString('es-AR',{
+    hour:'2-digit',
+    minute:'2-digit'
+  });
+}
+
+function articleSource(article){
+  if(article.source) return article.source;
+
+  try{
+    return new URL(article.url).hostname.replace(/^www\./,'');
+  }catch{
+    return article.provider || 'Fuente';
+  }
+}
+
+function articleKey(article){
+  if(article.url){
+    return article.url.toLowerCase();
+  }
+
+  return `${article.title || ''}|${articleSource(article)}`.toLowerCase();
+}
+
+function providerData(diagnostics){
+  diagnostics = diagnostics || {};
+
+  return [
+    ['Bing News',diagnostics.bingNews || {}],
+    ['GDELT',diagnostics.gdelt || {}],
+    ['Google News',diagnostics.googleNews || {}]
+  ];
+}
+
+function setStatus(text,type=''){
+  $('statusText').textContent = text;
+  $('statusDot').className = 'dot ' + type;
+}
+
+function renderDiagnostics(diagnostics){
+  const sources = providerData(diagnostics);
+
+  $('diagnostics').innerHTML = sources.map(([name,data])=>{
+    if(data.ok){
+      return `
+        <div class="source ok">
+          <b>● ${safe(name)}</b>
+          · ${Number(data.count || 0)} resultados
+        </div>
+      `;
+    }
+
+    return `
+      <div class="source off">
+        <b>○ ${safe(name)}</b>
+        · no disponible
+        ${data.error ? ' · ' + safe(String(data.error).slice(0,100)) : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function renderMedia(articles){
+  const counts = {};
+
+  articles.forEach(article=>{
+    const source = articleSource(article);
+    counts[source] = (counts[source] || 0) + 1;
+  });
+
+  const top = Object.entries(counts)
+    .sort((a,b)=>b[1]-a[1])
+    .slice(0,10);
+
+  if(!top.length){
+    $('mediaList').innerHTML = `
+      <div class="empty">
+        <strong>Sin medios para contar</strong>
+        No hubo resultados recuperados.
+      </div>
+    `;
+    return;
+  }
+
+  const max = top[0][1];
+
+  $('mediaList').innerHTML = top.map(([source,count])=>`
+    <div class="media-row">
+      <div class="media-label">
+        <span>${safe(source)}</span>
+        <b>${count}</b>
+      </div>
+
+      <div class="bar">
+        <span style="width:${Math.max(6,count/max*100)}%"></span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderArticles(articles){
+  if(!articles.length){
+    $('articles').innerHTML = `
+      <div class="empty">
+        <strong>No aparecieron resultados</strong>
+        Esto no significa necesariamente que el tema no exista.
+        Revisá el estado de las fuentes a la derecha.
+      </div>
+    `;
+    return;
+  }
+
+  $('articles').innerHTML = articles.map(article=>`
+    <div class="article">
+
+      <h4>
+        <a
+          href="${safe(article.url || '#')}"
+          target="_blank"
+          rel="noopener"
+        >
+          ${safe(article.title || 'Sin título')}
+        </a>
+      </h4>
+
+      <div class="meta">
+        <span class="media">${safe(articleSource(article))}</span>
+
+        ${article.provider
+          ? `<span>${safe(article.provider)}</span>`
+          : ''
+        }
+
+        <span>${safe(formatDate(article.date || article.published_at))}</span>
+      </div>
+
+    </div>
+  `).join('');
+}
+
+function updateNewResults(articles,newSession,hasCoverage){
+  if(!hasCoverage){
+    $('changeText').textContent =
+      'No hubo cobertura suficiente para actualizar el seguimiento.';
+    return;
+  }
+
+  if(newSession){
+    seen = new Set(articles.map(articleKey));
+
+    $('changeText').textContent =
+      'Primera lectura de este tema realizada.';
+    return;
+  }
+
+  const newOnes = articles.filter(article=>{
+    return !seen.has(articleKey(article));
+  });
+
+  newOnes.forEach(article=>{
+    seen.add(articleKey(article));
+  });
+
+  if(newOnes.length){
+    $('changeText').textContent =
+      `${newOnes.length} resultado${newOnes.length === 1 ? '' : 's'} nuevo${newOnes.length === 1 ? '' : 's'} desde que empezaste a seguir este tema.`;
+  }else{
+    $('changeText').textContent =
+      'Sin resultados nuevos desde la lectura anterior.';
+  }
+}
+
+async function searchNews(automatic=false){
+
+  if(loading) return;
+
+  const query = automatic && currentSearch
+    ? currentSearch.query
+    : $('query').value.trim();
+
+  const scope = automatic && currentSearch
+    ? currentSearch.scope
+    : $('scope').value;
+
+  const span = automatic && currentSearch
+    ? currentSearch.span
+    : $('span').value;
+
+  if(!query){
+    $('query').focus();
+    return;
+  }
+
+  const key = `${query.toLowerCase()}|${scope}|${span}`;
+
+  const newSession =
+    !currentSearch ||
+    currentSearch.key !== key;
+
+  if(!automatic){
+    currentSearch = {
+      query,
+      scope,
+      span,
+      key
+    };
+
+    if(newSession){
+      seen = new Set();
+    }
+  }
+
+  loading = true;
+
+  $('searchButton').disabled = true;
+  $('searchButton').textContent = 'Consultando…';
+
+  setStatus(
+    automatic
+      ? 'Actualizando seguimiento…'
+      : 'Consultando fuentes ahora…'
+  );
+
+  try{
+
+    const params = new URLSearchParams({
+      q:query,
+      scope,
+      span
+    });
+
+    const response = await fetch('/api/news?' + params,{
+      headers:{
+        Accept:'application/json'
+      }
+    });
+
+    const data = await response.json();
+
+    if(!response.ok){
+      throw new Error(data.error || 'La consulta falló');
+    }
+
+    let articles = Array.isArray(data.articles)
+      ? data.articles
+      : [];
+
+    articles = [...articles].sort((a,b)=>{
+      const ad = new Date(a.date || a.published_at || 0).getTime() || 0;
+      const bd = new Date(b.date || b.published_at || 0).getTime() || 0;
+      return bd-ad;
+    });
+
+    const providers = providerData(data.diagnostics);
+
+    const active = providers.filter(([,provider])=>{
+      return provider.ok;
+    });
+
+    const sources = new Set(
+      articles.map(articleSource)
+    );
+
+    $('resultCount').textContent = articles.length;
+    $('sourceCount').textContent = sources.size;
+    $('providerCount').textContent = active.length;
+
+    $('providerNames').textContent =
+      active.length
+        ? active.map(([name])=>name).join(' + ')
+        : 'sin cobertura';
+
+    $('updatedTime').textContent =
+      formatTime(data.fetchedAt || Date.now());
+
+    $('resultLabel').textContent =
+      `${query} · ${articles.length} resultados`;
+
+    renderArticles(articles);
+    renderMedia(articles);
+    renderDiagnostics(data.diagnostics);
+
+    updateNewResults(
+      articles,
+      newSession,
+      active.length > 0
+    );
+
+    $('sessionText').textContent =
+      'Seguimiento activo · actualización automática cada 2 minutos mientras esta pantalla esté abierta.';
+
+    lastRefresh = Date.now();
+
+    if(active.length === 0){
+      setStatus(
+        'Ninguna fuente estuvo disponible en esta actualización.',
+        'err'
+      );
+    }else{
+      setStatus(
+        `En vivo: ${articles.length} resultados recuperados con ${active.length} fuente${active.length === 1 ? '' : 's'} activa${active.length === 1 ? '' : 's'}.`,
+        'ok'
+      );
+    }
+
+  }catch(error){
+
+    setStatus(
+      'No se pudo completar esta actualización.',
+      'err'
+    );
+
+    $('changeText').textContent =
+      'La consulta falló antes de obtener una lectura utilizable.';
+
+    $('articles').innerHTML = `
+      <div class="empty">
+        <strong>No pude actualizar el seguimiento</strong>
+        ${safe(error.message)}
+      </div>
+    `;
+
+  }finally{
+
+    loading = false;
+
+    $('searchButton').disabled = false;
+    $('searchButton').textContent =
+      currentSearch
+        ? 'Actualizar ahora'
+        : 'Seguir en vivo';
+  }
+}
+
+async function loadRadar(){
+
+  $('radarStatus').textContent =
+    'Consultando monitores…';
+
+  try{
+
+    const response = await fetch('/api/radar',{
+      headers:{
+        Accept:'application/json'
+      }
+    });
+
+    const data = await response.json();
+
+    if(!response.ok){
+      throw new Error(data.error || 'No respondió el Radar');
+    }
+
+    const monitors = Array.isArray(data.monitors)
+      ? data.monitors
+      : [];
+
+    $('radarStatus').textContent =
+      `${monitors.length} monitoreo${monitors.length === 1 ? '' : 's'} activo${monitors.length === 1 ? '' : 's'} · captura horaria`;
+
+    if(!monitors.length){
+      $('radarCards').innerHTML = `
+        <div class="empty">
+          <strong>No hay monitores activos.</strong>
+        </div>
+      `;
+      return;
+    }
+
+    $('radarCards').innerHTML =
+      monitors.map(monitor=>{
+
+        const latest = monitor.latest;
+        const previous = monitor.previous;
+
+        let resultValue = '—';
+        let sourceValue = '—';
+        let state = 'Recolectando';
+
+        if(latest){
+
+          const coverage =
+            Number(latest.active_provider_count || 0);
+
+          if(coverage === 0){
+
+            state = 'Sin cobertura';
+
+          }else{
+
+            resultValue =
+              latest.article_count ?? '—';
+
+            sourceValue =
+              latest.source_count ?? '—';
+
+            if(!previous){
+
+              state = 'Primera medición';
+
+            }else if(
+              Number(previous.active_provider_count || 0) === 0
+            ){
+
+              state = 'Sin base comparable';
+
+            }else if(
+              Number(previous.active_provider_count) !==
+              Number(latest.active_provider_count)
+            ){
+
+              state = 'Cobertura variable';
+
+            }else if(
+              typeof monitor.growthPercent === 'number'
+            ){
+
+              if(monitor.growthPercent > 2){
+                state = `↑ +${monitor.growthPercent}%`;
+              }else if(monitor.growthPercent < -2){
+                state = `↓ ${monitor.growthPercent}%`;
+              }else{
+                state = 'Estable';
+              }
+            }
+          }
+        }
+
+        return `
+          <article class="monitor">
+
+            <div class="eyebrow">
+              MONITOREO
+            </div>
+
+            <h3>${safe(monitor.name)}</h3>
+
+            <div class="${state.includes('cobertura') || state.includes('base') ? 'warning' : ''}">
+              ${safe(state)}
+            </div>
+
+            <div class="monitor-stats">
+
+              <div>
+                <span>Resultados</span>
+                <b>${safe(resultValue)}</b>
+              </div>
+
+              <div>
+                <span>Medios</span>
+                <b>${safe(sourceValue)}</b>
+              </div>
+
+              <div>
+                <span>Última captura</span>
+                <b style="font-size:12px">
+                  ${latest ? safe(formatDate(latest.captured_at)) : 'Pendiente'}
+                </b>
+              </div>
+
+            </div>
+
+          </article>
+        `;
+      }).join('');
+
+  }catch(error){
+
+    $('radarStatus').textContent =
+      'Radar temporalmente no disponible';
+
+    $('radarCards').innerHTML = `
+      <div class="empty">
+        <strong>No pude cargar el Radar.</strong>
+        ${safe(error.message)}
+      </div>
+    `;
+  }
+}
+
+function showLive(){
+
+  $('liveView').hidden = false;
+  $('radarView').hidden = true;
+
+  $('liveTab').classList.add('active');
+  $('radarTab').classList.remove('active');
+}
+
+function showRadar(){
+
+  $('liveView').hidden = true;
+  $('radarView').hidden = false;
+
+  $('radarTab').classList.add('active');
+  $('liveTab').classList.remove('active');
+
+  loadRadar();
+}
+
+$('searchButton').addEventListener('click',()=>{
+  searchNews(false);
+});
+
+$('query').addEventListener('keydown',event=>{
+  if(event.key === 'Enter'){
+    searchNews(false);
+  }
+});
+
+$('liveTab').addEventListener('click',showLive);
+$('radarTab').addEventListener('click',showRadar);
+
+setInterval(()=>{
+
+  if(
+    currentSearch &&
+    !document.hidden &&
+    !$('liveView').hidden &&
+    !loading &&
+    Date.now() - lastRefresh >= REFRESH_MS
+  ){
+    searchNews(true);
+  }
+
+},15000);
+
+document.addEventListener('visibilitychange',()=>{
+
+  if(
+    !document.hidden &&
+    currentSearch &&
+    Date.now() - lastRefresh >= REFRESH_MS
+  ){
+    searchNews(true);
+  }
+});
+
+loadRadar();
+</script>
+<script src="/insight.js"></script>
 </body>
 </html>

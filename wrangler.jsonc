@@ -6,5 +6,23 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "stonedowl-db",
+      "database_id": "d585e5f4-b5f5-4838-88a5-2ba8ea834999",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "triggers": {
+    "crons": ["0 * * * *"]
+  },
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "head_sampling_rate": 1
+    }
   }
 }
+
