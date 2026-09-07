@@ -120,13 +120,14 @@ function renderMonitorDetail(data) {
   return `
     <div class="signal-summary ${evidenceClass}">
       <div class="signal-badge">${evidenceLabel}</div>
+      ${signal.locationLabel ? `<div class="signal-location">${radarEsc(signal.locationLabel)}</div>` : ''}
       <h3>${signal.title ? radarEsc(signal.title) : 'No hay un problema dominante confirmado'}</h3>
       <p>${radarEsc(signal.assessment || 'Todavía no hay evidencia suficiente.')}</p>
       ${signal.title ? `<div class="signal-stats"><span>${signal.sourceCount || 0} fuentes</span><span>${signal.articleCount || 0} notas</span><span>${radarEsc(radarTime(signal.latestPublishedAt))}</span></div>` : ''}
     </div>
     <div class="signal-columns">
       <div><h4>Qué sostiene esta señal</h4><ul class="signal-articles">${topArticles.length ? topArticles.map(detailArticle).join('') : '<li>Sin notas suficientes para mostrar.</li>'}</ul></div>
-      <div><h4>Otras historias detectadas</h4><ul class="signal-stories">${stories.slice(1, 5).map(story => `<li><strong>${radarEsc(story.title)}</strong><span>${story.sourceCount} fuentes · ${story.articleCount} notas</span></li>`).join('') || '<li>No hay otras historias agrupadas todavía.</li>'}</ul></div>
+      <div><h4>Otras historias detectadas</h4><ul class="signal-stories">${stories.slice(1, 5).map(story => `<li><strong>${radarEsc(story.title)}</strong><span>${story.geo?.barrios?.length ? `${radarEsc(story.geo.barrios.join(', '))} · ` : ''}${story.sourceCount} fuentes · ${story.articleCount} notas</span></li>`).join('') || '<li>No hay otras historias agrupadas todavía.</li>'}</ul></div>
     </div>`;
 }
 
@@ -162,6 +163,40 @@ function bindRadarCards() {
   });
 }
 
+function territoryRow(item, type) {
+  const label = type === 'commune' ? `Comuna ${item.commune}` : item.barrio;
+  const problem = item.predominantProblem?.name || 'Sin predominio';
+  const evidence = [...(item.entities || []), ...(item.stations || []).map(name => `Estación ${name}`)].slice(0, 2);
+  return `<div class="territory-row">
+    <div class="territory-rank"><b>${radarEsc(label)}</b><span>${radarEsc(problem)}${evidence.length ? ` · ${radarEsc(evidence.join(', '))}` : ''}</span></div>
+    <div class="territory-count"><b>${Number(item.incidentCount || 0)}</b><span>incidentes</span></div>
+  </div>`;
+}
+
+async function loadTerritory() {
+  const communes = document.getElementById('territory-communes');
+  const barrios = document.getElementById('territory-barrios');
+  const coverage = document.getElementById('territory-coverage');
+  if (!communes || !barrios || !coverage) return;
+
+  try {
+    const response = await fetch('/api/territory', { headers: { Accept: 'application/json' } });
+    const data = await response.json().catch(() => ({ ok: false, error: 'Respuesta territorial inválida.' }));
+    if (!response.ok || data.ok !== true) throw data;
+    const communeRows = (data.communes || []).slice(0, 8);
+    const barrioRows = (data.barrios || []).slice(0, 8);
+    communes.innerHTML = communeRows.length ? communeRows.map(item => territoryRow(item, 'commune')).join('') : '<div class="territory-empty">Todavía no hay incidentes con comuna identificable.</div>';
+    barrios.innerHTML = barrioRows.length ? barrioRows.map(item => territoryRow(item, 'barrio')).join('') : '<div class="territory-empty">Todavía no hay incidentes con barrio identificable.</div>';
+    const c = data.coverage || {};
+    coverage.textContent = `${c.geolocatedArticles || 0}/${c.totalArticles || 0} incidentes ubicados · ${c.geolocatedPercent || 0}%`;
+  } catch (error) {
+    const message = radarEsc(error.error || 'No se pudo calcular el ranking territorial.');
+    communes.innerHTML = `<div class="territory-empty">${message}</div>`;
+    barrios.innerHTML = '<div class="territory-empty">Sin datos territoriales disponibles.</div>';
+    coverage.textContent = 'Ranking no disponible';
+  }
+}
+
 async function loadRadar() {
   const grid = document.getElementById('radar-grid');
   const status = document.getElementById('radar-status');
@@ -194,8 +229,12 @@ async function loadRadar() {
   }
 }
 
-document.getElementById('radar-refresh')?.addEventListener('click', loadRadar);
+document.getElementById('radar-refresh')?.addEventListener('click', () => {
+  loadRadar();
+  loadTerritory();
+});
 document.getElementById('radar-detail-close')?.addEventListener('click', () => {
   document.getElementById('radar-detail').hidden = true;
 });
 loadRadar();
+loadTerritory();
