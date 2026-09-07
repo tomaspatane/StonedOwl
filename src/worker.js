@@ -61,6 +61,15 @@ function storyInput(article) {
   };
 }
 
+function geoLabel(geo = {}) {
+  const parts = [];
+  if (geo.entities?.length) parts.push(geo.entities.slice(0, 2).join(', '));
+  else if (geo.stations?.length) parts.push(`Estación ${geo.stations.slice(0, 2).join(', ')}`);
+  if (geo.barrios?.length) parts.push(geo.barrios.slice(0, 2).join(', '));
+  if (geo.communes?.length) parts.push(`Comuna ${geo.communes.slice(0, 2).join('/')}`);
+  return parts.join(' · ');
+}
+
 function summarizeMonitorStories(articles = []) {
   const valid = articles
     .map(storyInput)
@@ -69,6 +78,7 @@ function summarizeMonitorStories(articles = []) {
   const stories = grouped.map(story => ({ ...story, geo: summarizeGeo(story.articles) }));
   const dominant = stories[0] || null;
   const confirmed = Boolean(dominant && dominant.sourceCount >= 2);
+  const dominantLocation = dominant ? geoLabel(dominant.geo) : '';
 
   return {
     geo: summarizeGeo(valid),
@@ -80,9 +90,10 @@ function summarizeMonitorStories(articles = []) {
       latestPublishedAt: dominant.latestPublishedAt,
       confirmed,
       geo: dominant.geo,
+      locationLabel: dominantLocation || null,
       assessment: confirmed
-        ? `Señal repetida por ${dominant.sourceCount} fuentes en ${dominant.articleCount} notas.`
-        : 'Hay una historia destacada, pero todavía no alcanza para tratarla como problema dominante.'
+        ? `${dominantLocation ? `${dominantLocation}. ` : ''}Señal repetida por ${dominant.sourceCount} fuentes en ${dominant.articleCount} notas.`
+        : `${dominantLocation ? `${dominantLocation}. ` : ''}Hay una historia destacada, pero todavía no alcanza para tratarla como problema dominante.`
     } : {
       title: null,
       articleCount: 0,
@@ -90,6 +101,7 @@ function summarizeMonitorStories(articles = []) {
       latestPublishedAt: null,
       confirmed: false,
       geo: { barrios: [], communes: [], stations: [], entities: [] },
+      locationLabel: null,
       assessment: 'Todavía no hay una historia dominante con evidencia suficiente.'
     }
   };
