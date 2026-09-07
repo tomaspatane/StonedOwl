@@ -1,6 +1,7 @@
 import baseWorker from '../worker-v07.js';
 import { groupStories } from './articles.js';
 import { captureIncidentMonitors } from './incident-capture.js';
+import { summarizeGeo } from './geo-caba.js';
 import { classifyMomentum, explainMomentum } from './radar-signals.js';
 
 async function countNewArticles(db, monitorId, previousAt, latestAt) {
@@ -64,11 +65,13 @@ function summarizeMonitorStories(articles = []) {
   const valid = articles
     .map(storyInput)
     .filter(article => article.title && article.url && article.date);
-  const stories = groupStories(valid).slice(0, 8);
+  const grouped = groupStories(valid).slice(0, 8);
+  const stories = grouped.map(story => ({ ...story, geo: summarizeGeo(story.articles) }));
   const dominant = stories[0] || null;
   const confirmed = Boolean(dominant && dominant.sourceCount >= 2);
 
   return {
+    geo: summarizeGeo(valid),
     stories,
     dominantSignal: dominant ? {
       title: dominant.title,
@@ -76,6 +79,7 @@ function summarizeMonitorStories(articles = []) {
       sourceCount: dominant.sourceCount,
       latestPublishedAt: dominant.latestPublishedAt,
       confirmed,
+      geo: dominant.geo,
       assessment: confirmed
         ? `Señal repetida por ${dominant.sourceCount} fuentes en ${dominant.articleCount} notas.`
         : 'Hay una historia destacada, pero todavía no alcanza para tratarla como problema dominante.'
@@ -85,6 +89,7 @@ function summarizeMonitorStories(articles = []) {
       sourceCount: 0,
       latestPublishedAt: null,
       confirmed: false,
+      geo: { barrios: [], communes: [], stations: [], entities: [] },
       assessment: 'Todavía no hay una historia dominante con evidencia suficiente.'
     }
   };
