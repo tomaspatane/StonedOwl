@@ -54,7 +54,7 @@ function radarCard(monitor, emphasis = 'context') {
   const momentum = monitor.momentum || { status: 'learning', comparable: false, growthPercent: null, explanation: 'Esperando datos comparables.' };
   const label = RADAR_LABELS[momentum.status] || momentum.status;
   return `
-    <article class="radar-card" data-state="${radarEsc(momentum.status)}" data-emphasis="${radarEsc(emphasis)}">
+    <article class="radar-card" role="button" tabindex="0" data-monitor-id="${radarEsc(monitor.id)}" data-state="${radarEsc(momentum.status)}" data-emphasis="${radarEsc(emphasis)}" aria-label="Abrir detalle de ${radarEsc(monitor.name)}">
       <div class="radar-card-top">
         <div><span class="radar-name">${radarEsc(monitor.name)}</span><small>${radarEsc(monitor.span === '1d' ? 'últimas 24 h' : monitor.span)}</small></div>
         <span class="radar-pill">${radarEsc(label)}</span>
@@ -66,7 +66,7 @@ function radarCard(monitor, emphasis = 'context') {
         <div><b>${growthText(momentum)}</b><span>variación</span></div>
         <div><b>${monitor.newArticleCount ?? '—'}</b><span>nuevas</span></div>
       </div>
-      <div class="radar-card-foot"><span>${momentum.comparable ? 'Capturas comparables' : 'No comparar todavía'}</span><span>${radarEsc(radarTime(latest?.captured_at))}</span></div>
+      <div class="radar-card-foot"><span>${momentum.comparable ? 'Capturas comparables' : 'No comparar todavía'}</span><span>Ver qué lo explica →</span></div>
     </article>`;
 }
 
@@ -95,6 +95,73 @@ function renderRadarGroups(monitors) {
   return urgentHtml + contextHtml;
 }
 
+function detailArticle(article) {
+  const title = radarEsc(article.title || 'Sin título');
+  const source = radarEsc(article.source || article.provider || 'Fuente');
+  const url = String(article.url || '');
+  let safeUrl = '';
+  try {
+    const parsed = new URL(url);
+    if (['http:', 'https:'].includes(parsed.protocol)) safeUrl = parsed.href;
+  } catch {}
+  return `<li>${safeUrl ? `<a href="${radarEsc(safeUrl)}" target="_blank" rel="noopener noreferrer">${title}</a>` : title}<span>${source}</span></li>`;
+}
+
+function renderMonitorDetail(data) {
+  const signal = data.dominantSignal || {};
+  const stories = data.stories || [];
+  const articles = data.articles || [];
+  const evidenceClass = signal.confirmed ? 'confirmed' : 'weak';
+  const evidenceLabel = signal.confirmed ? 'Evidencia repetida' : 'Evidencia insuficiente';
+  const topArticles = signal.title
+    ? articles.filter(article => String(article.title || '').toLowerCase().includes(String(signal.title).toLowerCase().split(' ').slice(0, 3).join(' '))).slice(0, 5)
+    : articles.slice(0, 5);
+
+  return `
+    <div class="signal-summary ${evidenceClass}">
+      <div class="signal-badge">${evidenceLabel}</div>
+      <h3>${signal.title ? radarEsc(signal.title) : 'No hay un problema dominante confirmado'}</h3>
+      <p>${radarEsc(signal.assessment || 'Todavía no hay evidencia suficiente.')}</p>
+      ${signal.title ? `<div class="signal-stats"><span>${signal.sourceCount || 0} fuentes</span><span>${signal.articleCount || 0} notas</span><span>${radarEsc(radarTime(signal.latestPublishedAt))}</span></div>` : ''}
+    </div>
+    <div class="signal-columns">
+      <div><h4>Qué sostiene esta señal</h4><ul class="signal-articles">${topArticles.length ? topArticles.map(detailArticle).join('') : '<li>Sin notas suficientes para mostrar.</li>'}</ul></div>
+      <div><h4>Otras historias detectadas</h4><ul class="signal-stories">${stories.slice(1, 5).map(story => `<li><strong>${radarEsc(story.title)}</strong><span>${story.sourceCount} fuentes · ${story.articleCount} notas</span></li>`).join('') || '<li>No hay otras historias agrupadas todavía.</li>'}</ul></div>
+    </div>`;
+}
+
+async function openMonitorDetail(id, name) {
+  const detail = document.getElementById('radar-detail');
+  const title = document.getElementById('radar-detail-title');
+  const body = document.getElementById('radar-detail-body');
+  if (!detail || !title || !body) return;
+  detail.hidden = false;
+  title.textContent = name || 'Monitoreo';
+  body.innerHTML = '<div class="radar-placeholder">Buscando qué historia explica esta señal…</div>';
+  detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  try {
+    const response = await fetch(`/api/monitor?id=${encodeURIComponent(id)}`, { headers: { Accept: 'application/json' } });
+    const data = await response.json().catch(() => ({ ok: false, error: 'Respuesta inválida del monitoreo.' }));
+    if (!response.ok || data.ok !== true) throw data;
+    body.innerHTML = renderMonitorDetail(data);
+  } catch (error) {
+    body.innerHTML = `<div class="radar-placeholder"><strong>No pude abrir el detalle</strong>${radarEsc(error.error || 'No se pudo consultar el monitoreo.')}</div>`;
+  }
+}
+
+function bindRadarCards() {
+  document.querySelectorAll('[data-monitor-id]').forEach(card => {
+    const open = () => openMonitorDetail(card.dataset.monitorId, card.querySelector('.radar-name')?.textContent);
+    card.addEventListener('click', open);
+    card.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        open();
+      }
+    });
+  });
+}
+
 async function loadRadar() {
   const grid = document.getElementById('radar-grid');
   const status = document.getElementById('radar-status');
@@ -111,6 +178,7 @@ async function loadRadar() {
     grid.innerHTML = monitors.length
       ? renderRadarGroups(monitors)
       : '<div class="radar-placeholder">No hay monitoreos activos todavía.</div>';
+    bindRadarCards();
     const rising = monitors.filter(m => m.momentum?.status === 'rising').length;
     const active = monitors.filter(m => m.momentum?.status === 'active').length;
     status.textContent = rising
@@ -127,4 +195,7 @@ async function loadRadar() {
 }
 
 document.getElementById('radar-refresh')?.addEventListener('click', loadRadar);
+document.getElementById('radar-detail-close')?.addEventListener('click', () => {
+  document.getElementById('radar-detail').hidden = true;
+});
 loadRadar();
