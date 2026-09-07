@@ -3,6 +3,14 @@ import { groupStories } from './articles.js';
 import { captureIncidentMonitors } from './incident-capture.js';
 import { summarizeGeo } from './geo-caba.js';
 import { classifyMomentum, explainMomentum } from './radar-signals.js';
+import { summarizeTerritory } from './territory.js';
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }
+  });
+}
 
 async function countNewArticles(db, monitorId, previousAt, latestAt) {
   if (!db || !previousAt || !latestAt) return 0;
@@ -123,12 +131,48 @@ async function augmentMonitor(response) {
   });
 }
 
-export { summarizeMonitorStories };
+async function handleTerritory(db) {
+  if (!db) return json({ ok: false, error: 'Ranking territorial sin base de datos disponible.' }, 503);
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { results } = await db.prepare(`
+    SELECT DISTINCT
+      m.id AS monitor_id,
+      m.name AS monitor_name,
+      a.id AS article_id,
+      a.title,
+      a.url,
+      a.source,
+      a.published_at,
+      ma.first_seen_at,
+      ma.last_seen_at
+    FROM monitor_articles ma
+    JOIN monitors m ON m.id = ma.monitor_id
+    JOIN articles a ON a.id = ma.article_id
+    WHERE m.enabled = 1
+      AND ma.last_seen_at >= ?
+    ORDER BY ma.last_seen_at DESC
+    LIMIT 600
+  `).bind(since).all();
+
+  const ranking = summarizeTerritory(results || []);
+  return json({
+    ok: true,
+    since,
+    generatedAt: new Date().toISOString(),
+    ...ranking,
+    communes: ranking.communes.slice(0, 15),
+    barrios: ranking.barrios.slice(0, 20)
+  });
+}
+
+export { summarizeMonitorStories, handleTerritory };
 
 export default {
   async fetch(request, env, ctx) {
-    const response = await baseWorker.fetch(request, env, ctx);
     const url = new URL(request.url);
+    if (url.pathname === '/api/territory') return handleTerritory(env.DB);
+
+    const response = await baseWorker.fetch(request, env, ctx);
     if (url.pathname === '/api/radar') {
       return augmentRadar(response, env);
     }
