@@ -32,10 +32,49 @@ const BARRIO_ALIASES = [
 ];
 
 const HOSPITALS = [
-  'Argerich', 'Durand', 'Fernández', 'Ramos Mejía', 'Penna', 'Piñero', 'Pirovano', 'Santojanni',
-  'Tornú', 'Vélez Sarsfield', 'Zubizarreta', 'Rivadavia', 'Gutiérrez', 'Elizalde', 'Garrahan',
-  'Moyano', 'Borda', 'Alvear', 'Udaondo', 'Muñiz', 'Sardá', 'Rocca', 'Cecilia Grierson', 'Clínicas'
+  { name: 'Argerich', barrio: 'La Boca', commune: 4 },
+  { name: 'Durand', barrio: 'Caballito', commune: 6 },
+  { name: 'Fernández', barrio: 'Palermo', commune: 14 },
+  { name: 'Ramos Mejía', barrio: 'Balvanera', commune: 3 },
+  { name: 'Penna', barrio: 'Parque Patricios', commune: 4 },
+  { name: 'Piñero', barrio: 'Flores', commune: 7 },
+  { name: 'Pirovano', barrio: 'Coghlan', commune: 12 },
+  { name: 'Santojanni', barrio: 'Mataderos', commune: 9 },
+  { name: 'Vélez Sarsfield', barrio: 'Monte Castro', commune: 10 },
+  { name: 'Zubizarreta', barrio: 'Villa Devoto', commune: 11 },
+  { name: 'Rivadavia', barrio: 'Recoleta', commune: 2 },
+  { name: 'Elizalde', barrio: 'Constitución', commune: 1 },
+  { name: 'Garrahan', barrio: 'Parque Patricios', commune: 4 },
+  { name: 'Moyano', barrio: 'Barracas', commune: 4 },
+  { name: 'Borda', barrio: 'Barracas', commune: 4 },
+  { name: 'Udaondo', barrio: 'Parque Patricios', commune: 4 },
+  { name: 'Muñiz', barrio: 'Parque Patricios', commune: 4 },
+  { name: 'Sardá', barrio: 'Parque Patricios', commune: 4 },
+  { name: 'Rocca', barrio: 'Floresta', commune: 10 },
+  { name: 'Cecilia Grierson', barrio: 'Villa Lugano', commune: 8 }
 ];
+
+const STATIONS = {
+  medrano: { name: 'Medrano', barrio: 'Almagro', commune: 5 },
+  'angel gallardo': { name: 'Ángel Gallardo', barrio: 'Villa Crespo', commune: 15 },
+  malabia: { name: 'Malabia', barrio: 'Villa Crespo', commune: 15 },
+  dorrego: { name: 'Dorrego', barrio: 'Chacarita', commune: 15 },
+  'federico lacroze': { name: 'Federico Lacroze', barrio: 'Chacarita', commune: 15 },
+  'juan manuel de rosas': { name: 'Juan Manuel de Rosas', barrio: 'Villa Urquiza', commune: 12 },
+  'los incas parque chas': { name: 'Los Incas - Parque Chas', barrio: 'Parque Chas', commune: 15 },
+  'primera junta': { name: 'Primera Junta', barrio: 'Caballito', commune: 6 },
+  acoyte: { name: 'Acoyte', barrio: 'Caballito', commune: 6 },
+  'rio de janeiro': { name: 'Río de Janeiro', barrio: 'Caballito', commune: 6 },
+  'castro barros': { name: 'Castro Barros', barrio: 'Almagro', commune: 5 },
+  loria: { name: 'Loria', barrio: 'Almagro', commune: 5 },
+  'plaza miserere': { name: 'Plaza Miserere', barrio: 'Balvanera', commune: 3 },
+  pueyrredon: { name: 'Pueyrredón', barrio: 'Balvanera', commune: 3 },
+  'facultad de medicina': { name: 'Facultad de Medicina', barrio: 'Balvanera', commune: 3 },
+  callao: { name: 'Callao', barrio: 'Balvanera', commune: 3 },
+  congreso: { name: 'Congreso', barrio: 'Balvanera', commune: 3 },
+  constitucion: { name: 'Constitución', barrio: 'Constitución', commune: 1 },
+  retiro: { name: 'Retiro', barrio: 'Retiro', commune: 1 }
+};
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
@@ -61,9 +100,13 @@ function extractStations(original) {
   return unique(values);
 }
 
-function extractHospitals(text) {
+function hospitalMatches(text) {
   const normalized = normalize(text);
-  return HOSPITALS.filter(name => includesPhrase(normalized, normalize(name))).map(name => `Hospital ${name}`);
+  return HOSPITALS.filter(item => includesPhrase(normalized, normalize(item.name)));
+}
+
+function stationMetadata(stations = []) {
+  return stations.map(name => STATIONS[normalize(name)]).filter(Boolean);
 }
 
 export function extractGeo(text = '') {
@@ -85,11 +128,23 @@ export function extractGeo(text = '') {
     }
   }
 
+  const hospitals = hospitalMatches(original);
+  for (const hospital of hospitals) {
+    barrios.push(hospital.barrio);
+    communes.push(hospital.commune);
+  }
+
+  const stations = extractStations(original);
+  for (const station of stationMetadata(stations)) {
+    barrios.push(station.barrio);
+    communes.push(station.commune);
+  }
+
   return {
     barrios: unique(barrios),
     communes: unique(communes).sort((a, b) => a - b),
-    stations: extractStations(original),
-    entities: extractHospitals(original)
+    stations,
+    entities: hospitals.map(item => `Hospital ${item.name}`)
   };
 }
 
