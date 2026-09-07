@@ -1,5 +1,6 @@
 import baseWorker from '../worker-v07.js';
 import { groupStories } from './articles.js';
+import { captureIncidentMonitors } from './incident-capture.js';
 import { classifyMomentum, explainMomentum } from './radar-signals.js';
 
 async function countNewArticles(db, monitorId, previousAt, latestAt) {
@@ -121,6 +122,11 @@ export default {
   },
 
   async scheduled(controller, env, ctx) {
-    return baseWorker.scheduled(controller, env, ctx);
+    console.log(JSON.stringify({ message: 'scheduled incident capture started', cron: controller.cron }));
+    if (!env.DB) {
+      console.error(JSON.stringify({ message: 'scheduled incident capture skipped', error: 'DB binding no disponible' }));
+      return;
+    }
+    ctx.waitUntil(captureIncidentMonitors(env.DB));
   }
 };
