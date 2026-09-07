@@ -38,7 +38,7 @@ function newsUrl() {
     scope: $('scope').value,
     span: $('span').value
   });
-  return '/api/news?' + params.toString();
+  return '/api/stories?' + params.toString();
 }
 
 function updateTrends() {
@@ -50,24 +50,18 @@ function updateTrends() {
 }
 
 async function fetchNews() {
-  const response = await fetch(newsUrl(), { headers: { Accept: 'application/json' } });
-  const data = await response.json().catch(() => ({ error: 'Respuesta inválida del backend' }));
-  if (!response.ok) throw data;
-  return data;
-}
-
-function dedupe(articles) {
-  const seen = new Set();
-  return articles.filter(article => {
-    const key = (article.title || article.url).toLowerCase().replace(/\s+/g, ' ').trim();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+  try {
+    const response = await fetch(newsUrl(), { headers: { Accept: 'application/json' }, signal: controller.signal });
+    const data = await response.json().catch(() => ({ error: 'Respuesta inválida del backend' }));
+    if (!response.ok || data.ok !== true) throw data;
+    return data;
+  } finally { clearTimeout(timer); }
 }
 
 function renderMedia(articles) {
-  const counts = {};
+  const counts = Object.create(null);
   articles.forEach(article => {
     const source = articleSource(article);
     counts[source] = (counts[source] || 0) + 1;
@@ -85,32 +79,36 @@ function renderMedia(articles) {
   ).join('');
 }
 
-function render(articles) {
-  $('m1').textContent = articles.length;
+function safeLink(value) {
+  try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; }
+  catch { return ''; }
+}
+function articleHtml(article) {
+  const url = safeLink(article.url);
+  return `<div class="article"><h4>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(article.title)}</a>` : esc(article.title)}</h4><div class="meta"><span class="media">${esc(articleSource(article))}</span><span>${esc(fmtDate(article.date))}</span>${article.locationMatched === false ? '<span>Ubicación en CABA sin confirmar</span>' : ''}</div></div>`;
+}
+function render(data) {
+  const articles = data.articles || [];
+  const stories = data.stories || [];
+  $('m1').textContent = stories.length;
   $('m2').textContent = new Set(articles.map(articleSource)).size;
-  $('m3').textContent = $('span').options[$('span').selectedIndex].text
-    .replace('Últimas ', '')
-    .replace('Último ', '');
-
-  const active = [...new Set(articles.map(article => article.provider).filter(Boolean))];
-  $('m4').textContent = active.length;
-  $('m4sub').textContent = active.join(' + ') || 'sin fuentes';
-  $('label').textContent = `${articles.length} resultados`;
-
-  $('articles').innerHTML = articles.length
-    ? articles.map(article =>
-      `<div class="article"><h4><a href="${esc(article.url)}" target="_blank" rel="noopener">${esc(article.title || 'Sin título')}</a></h4><div class="meta"><span class="media">${esc(articleSource(article))}</span><span>${esc(article.provider || '')}</span><span>${esc(fmtDate(article.date))}</span></div></div>`
-    ).join('')
-    : '<div class="empty"><strong>No aparecieron noticias</strong>Probá ampliar el período o cambiar el término.</div>';
-
+  $('m3').textContent = articles.length;
+  $('m4').textContent = data.activeProviderCount;
+  $('m4sub').textContent = data.coverage === 'partial' ? 'cobertura parcial' : 'consultadas';
+  $('label').textContent = `${stories.length} historias · ${articles.length} notas`;
+  $('articles').innerHTML = stories.length ? stories.map(story => `
+    <details class="story">
+      <summary><h4>${esc(story.title)}</h4><div class="meta"><span class="media">${story.sourceCount} medios</span><span>${story.articleCount} notas</span>${story.articles.some(a => a.locationMatched === false) ? '<span>Ubicación por verificar</span>' : ''}<span>${esc(fmtDate(story.latestPublishedAt))}</span></div><span class="story-action">Ver notas y fuentes</span></summary>
+      ${story.articles.map(articleHtml).join('')}
+    </details>`).join('') : '<div class="empty"><strong>No encontramos notas que coincidan</strong>Probá ampliar el período o usar otro término. Esto no significa que el tema no tenga cobertura.</div>';
   renderMedia(articles);
 }
 
 function sourceLine(name, source = {}) {
   if (source.ok) {
-    return `<div><b style="color:#baff64">● ${esc(name)}</b> · ${source.count || 0} resultados</div>`;
+    return `<div><b style="color:#baff64">● ${esc(name)}</b> · ${source.count || 0} notas recibidas</div>`;
   }
-  const error = source.error ? ` · ${esc(String(source.error).slice(0, 120))}` : '';
+  const error = source.error === 'timeout' ? ' · demoró demasiado' : '';
   return `<div style="opacity:.62"><b>○ ${esc(name)}</b> · no disponible${error}</div>`;
 }
 
@@ -124,38 +122,48 @@ function diagnostics(data = {}) {
 
 async function search() {
   const term = baseTerm();
-  if (!term) {
+  if (term.length < 2) {
     $('q').focus();
+    setStatus('Escribí al menos dos caracteres.', '');
     return;
   }
 
   updateTrends();
   setStatus('Buscando noticias…', 'load');
+  if ($('go').disabled) return;
   $('go').disabled = true;
+  for (const id of ['q', 'scope', 'span']) $(id).disabled = true;
+  $('articles').setAttribute('aria-busy', 'true');
   $('label').textContent = 'Cargando…';
   $('diag').textContent = 'Consultando fuentes abiertas desde StonedOwl.';
 
   try {
     const data = await fetchNews();
-    const articles = dedupe(data.articles || []);
-    render(articles);
+    const articles = data.articles || [];
+    render(data);
     $('diag').innerHTML = diagnostics(data.diagnostics);
 
     if (articles.length) {
-      setStatus(`Listo: ${articles.length} noticias reales.`, 'ok');
+      const excluded = data.excludedCount ? ` Se omitieron ${data.excludedCount} notas que no coincidían con el tema.` : '';
+      setStatus(`Actualizado ${fmtDate(data.fetchedAt)}.${data.coverage === 'partial' ? ' Algunas fuentes no respondieron.' : ''}${excluded}`, 'ok');
     } else {
       setStatus('Las fuentes respondieron, pero no hubo resultados.', '');
     }
   } catch (error) {
+    $('label').textContent = 'Consulta sin completar';
+    $('m3').textContent = '—';
+    $('media').innerHTML = '<div class="empty">No hay una muestra actual para contar medios.</div>';
     $('m1').textContent = '—';
     $('m2').textContent = '—';
-    $('m4').textContent = '0';
-    $('m4sub').textContent = 'sin fuentes';
-    $('articles').innerHTML = `<div class="empty"><strong>No pude traer resultados</strong>${esc(error.error || 'Error de fuentes')}</div>`;
+    $('m4').textContent = error.coverage === 'unavailable' ? '0' : '—';
+    $('m4sub').textContent = error.coverage === 'unavailable' ? 'sin fuentes' : 'sin verificar';
+    $('articles').innerHTML = `<div class="empty"><strong>No pude traer resultados</strong>${esc(error.error || (error.name === 'AbortError' ? 'La consulta demoró demasiado. Volvé a intentar.' : 'No se pudo conectar. Volvé a intentar.'))}</div>`;
     $('diag').innerHTML = (error.error ? esc(error.error) + '<br>' : '') + diagnostics(error.diagnostics);
-    setStatus('No hubo ninguna fuente disponible.', 'err');
+    setStatus('No se pudo completar la consulta. Podés reintentar.', 'err');
   } finally {
     $('go').disabled = false;
+    for (const id of ['q', 'scope', 'span']) $(id).disabled = false;
+    $('articles').setAttribute('aria-busy', 'false');
   }
 }
 
@@ -166,3 +174,5 @@ $('q').addEventListener('keydown', event => {
 $('q').addEventListener('input', updateTrends);
 $('scope').addEventListener('change', updateTrends);
 updateTrends();
+
+document.querySelectorAll('[data-query]').forEach(button => { button.onclick = () => { if ($('go').disabled) return; $('q').value = button.dataset.query; search(); }; });
