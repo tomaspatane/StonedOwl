@@ -1,7 +1,7 @@
 import { normalize } from './articles.js';
 
 const COMMON_INCIDENTS = [
-  /\b(demora(?:s)?|retraso(?:s)?|interrupci[oó]n|interrumpid[oa]s?|suspendid[oa]s?|suspensi[oó]n|cierre|cerrad[oa]s?|corte(?:s)?|falla(?:s)?|aver[ií]a(?:s)?|problema(?:s)?|reclamo(?:s)?|queja(?:s)?|paro(?:s)?|huelga(?:s)?|conflicto(?:s)?|incidente(?:s)?|colapso|saturad[oa]s?|faltante(?:s)?|falta de|sin servicio|no funciona|no funcionan)\b/,
+  /\b(demora(?:s)?|retraso(?:s)?|interrupci[oó]n|interrumpid[oa]s?|suspendid[oa]s?|suspensi[oó]n|cierre|cierra|cierran|cerrara|cerraran|cerrad[oa]s?|corte(?:s)?|falla(?:s)?|aver[ií]a(?:s)?|problema(?:s)?|reclamo(?:s)?|queja(?:s)?|paro(?:s)?|huelga(?:s)?|conflicto(?:s)?|incidente(?:s)?|colapso|saturad[oa]s?|faltante(?:s)?|falta de|sin servicio|no funciona|no funcionan)\b/,
   /\b(denuncian?|advierten?|reclaman?|protestan?|cancelad[oa]s?|evacua(?:do|da|dos|das)|demorado|demorada)\b/
 ];
 
