@@ -55,7 +55,11 @@ test('partial provider failure preserves articles and stories with explicit cove
     const data=await response.json();assert.equal(response.status,200);assert.equal(data.coverage,'partial');assert.equal(data.stories.length,1);
   }finally{global.fetch=original;}
 });
-test('unknown APIs return JSON 404 rather than the app shell',async()=>{
+test('radar is an explicit API and reports missing D1 instead of serving the app shell',async()=>{
   const response=await worker.fetch(new Request('https://owl.test/api/radar'),{ASSETS:{fetch(){throw Error('must not serve assets');}}});
+  assert.equal(response.status,503);assert.equal((await response.json()).ok,false);
+});
+test('unknown APIs still return JSON 404 rather than the app shell',async()=>{
+  const response=await worker.fetch(new Request('https://owl.test/api/unknown'),{ASSETS:{fetch(){throw Error('must not serve assets');}}});
   assert.equal(response.status,404);assert.equal((await response.json()).ok,false);
 });
