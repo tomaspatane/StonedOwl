@@ -47,19 +47,41 @@ CREATE INDEX IF NOT EXISTS idx_monitor_articles_last_seen
   ON monitor_articles (monitor_id, last_seen_at DESC);
 
 INSERT INTO monitors (id, name, query, scope, span, enabled, created_at, updated_at)
-VALUES (
-  'salud-caba',
-  'Salud CABA',
-  'hospital hospitales guardia guardias SAME médicos enfermería turnos "salud pública" CABA',
-  'argentina',
-  '1d',
-  1,
-  strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
-  strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-)
+VALUES
+  (
+    'salud-caba',
+    'Salud CABA',
+    'salud CABA',
+    'argentina',
+    '1d',
+    1,
+    strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+    strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+  ),
+  (
+    'hospitales-caba',
+    'Hospitales CABA',
+    'hospitales CABA',
+    'argentina',
+    '1d',
+    1,
+    strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+    strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+  ),
+  (
+    'subte-caba',
+    'Subte CABA',
+    'subte CABA',
+    'argentina',
+    '1d',
+    1,
+    strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+    strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+  )
 ON CONFLICT(id) DO UPDATE SET
   name = excluded.name,
   query = excluded.query,
   scope = excluded.scope,
   span = excluded.span,
+  enabled = excluded.enabled,
   updated_at = excluded.updated_at;
