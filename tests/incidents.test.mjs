@@ -23,6 +23,24 @@ test('subte monitor rejects promotional or cultural stories', () => {
   assert.equal(incidentRelevant(article('Vagón de lectores: una propuesta cultural en el Subte'), 'subte-caba'), false);
 });
 
+test('new urban monitors accept actionable incidents in their domain', () => {
+  assert.equal(incidentRelevant(article('Corte de luz afecta a varios barrios y usuarios reclaman a Edesur'), 'servicios-caba'), true);
+  assert.equal(incidentRelevant(article('Escuela porteña suspende clases por una falla eléctrica'), 'educacion-caba'), true);
+  assert.equal(incidentRelevant(article('Vecinos denuncian una ola de robos y reclaman más seguridad'), 'seguridad-caba'), true);
+  assert.equal(incidentRelevant(article('Reclamos por basura acumulada y fallas en la recolección'), 'limpieza-caba'), true);
+  assert.equal(incidentRelevant(article('Desalojo conflictivo en un edificio de la Ciudad'), 'vivienda-obras-caba'), true);
+  assert.equal(incidentRelevant(article('Vecinos reclaman por veredas rotas y problemas en el espacio público'), 'espacio-publico-caba'), true);
+});
+
+test('new urban monitors reject routine or positive coverage without incident language', () => {
+  assert.equal(incidentRelevant(article('La Ciudad inauguró nueva iluminación LED en una avenida'), 'servicios-caba'), false);
+  assert.equal(incidentRelevant(article('Una escuela estrenó biblioteca y laboratorio'), 'educacion-caba'), false);
+  assert.equal(incidentRelevant(article('La Policía incorporó nuevos patrulleros'), 'seguridad-caba'), false);
+  assert.equal(incidentRelevant(article('Nuevo operativo de limpieza integral en plazas'), 'limpieza-caba'), false);
+  assert.equal(incidentRelevant(article('Avanza una obra de vivienda con nuevos departamentos'), 'vivienda-obras-caba'), false);
+  assert.equal(incidentRelevant(article('Renovaron una plaza y sumaron juegos'), 'espacio-publico-caba'), false);
+});
+
 test('filterIncidentArticles keeps only actionable incident-shaped coverage', () => {
   const rows = [
     article('Hospital Rocca renovó su farmacia y rehabilitación'),
