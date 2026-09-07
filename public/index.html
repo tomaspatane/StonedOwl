@@ -3,21 +3,32 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>StonedOwl · Historias</title>
+<title>StonedOwl · Radar CABA</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand"><div class="logo">🦉</div><div><h1>StonedOwl</h1><div class="sub">Historias de la agenda pública</div></div></div>
-    <div class="ver">HISTORIAS</div>
+    <div class="brand"><div class="logo">🦉</div><div><h1>StonedOwl</h1><div class="sub">Radar de problemas y agenda pública en CABA</div></div></div>
+    <div class="ver">RADAR</div>
   </header>
 
+  <section class="radar-section" aria-labelledby="radar-title">
+    <div class="radar-head">
+      <div><span class="eyebrow">SEGUIMIENTO CONTINUO</span><h2 id="radar-title">¿Qué se está calentando?</h2><p>Comparamos capturas equivalentes para detectar aceleración real sin confundirla con fallas de las fuentes.</p></div>
+      <button class="radar-refresh" id="radar-refresh">Actualizar Radar</button>
+    </div>
+    <div class="radar-status" id="radar-status" role="status" aria-live="polite">Cargando monitoreos…</div>
+    <div class="radar-grid" id="radar-grid">
+      <div class="radar-placeholder">Esperando la primera lectura del Radar.</div>
+    </div>
+  </section>
+
   <section class="panel search">
-    <h2>Menos ruido. Historias con sus fuentes.</h2>
-    <p>Explorá un tema y reuní las notas similares. Ordenadas por cantidad de medios y fecha; sin métricas de crecimiento todavía.</p>
+    <h2>Explorar historias y fuentes</h2>
+    <p>Buscá un tema puntual para revisar qué notas lo están cubriendo. El Radar de arriba usa monitoreos persistentes; esta búsqueda es exploratoria.</p>
     <div class="row">
-      <input aria-label="Tema" maxlength="300" id="q" placeholder="Ej.: Milei, hospitales CABA, subte" autofocus>
+      <input aria-label="Tema" maxlength="300" id="q" placeholder="Ej.: hospitales CABA, subte, guardias" autofocus>
       <select aria-label="Período" id="span">
         <option value="1d">Últimas 24 h</option>
         <option value="3d">Últimos 3 días</option>
@@ -30,7 +41,7 @@
       </select>
       <button id="go">Explorar</button>
     </div>
-    <div class="presets"><button data-query="hospitales CABA">Salud CABA</button><button data-query="universidad">Universidad</button><button data-query="subte">Subte</button></div>
+    <div class="presets"><button data-query="hospitales CABA">Hospitales CABA</button><button data-query="universidad CABA">Universidad</button><button data-query="subte CABA">Subte CABA</button></div>
     <div class="status" role="status" aria-live="polite"><span class="dot" id="dot"></span><span id="status">Escribí un tema para empezar.</span></div>
   </section>
 
@@ -53,7 +64,7 @@
     </aside>
   </main>
 
-  <footer>Agrupación automática por similitud de títulos: puede reunir notas distintas o separar notas relacionadas. La muestra no representa toda la cobertura. El seguimiento histórico continuo sigue pendiente.</footer>
+  <footer>El Radar compara sólo capturas con cobertura técnica equivalente. Una señal indica cambios en la cobertura recuperada, no una medición exhaustiva de la opinión pública. Las historias se agrupan automáticamente por similitud de títulos y siempre deben poder revisarse en sus fuentes.</footer>
 </div>
 <script src="app.js"></script>
 </body>
