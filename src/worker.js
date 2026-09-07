@@ -1,4 +1,5 @@
 import baseWorker from '../worker-v07.js';
+import { groupStories } from './articles.js';
 import { classifyMomentum, explainMomentum } from './radar-signals.js';
 
 async function countNewArticles(db, monitorId, previousAt, latestAt) {
@@ -47,12 +48,74 @@ async function augmentRadar(response, env) {
   });
 }
 
+function storyInput(article) {
+  return {
+    title: article.title,
+    url: article.url,
+    source: article.source || article.provider || 'Fuente',
+    provider: article.provider,
+    date: article.published_at || article.last_seen_at || article.first_seen_at,
+    description: ''
+  };
+}
+
+function summarizeMonitorStories(articles = []) {
+  const valid = articles
+    .map(storyInput)
+    .filter(article => article.title && article.url && article.date);
+  const stories = groupStories(valid).slice(0, 8);
+  const dominant = stories[0] || null;
+  const confirmed = Boolean(dominant && dominant.sourceCount >= 2);
+
+  return {
+    stories,
+    dominantSignal: dominant ? {
+      title: dominant.title,
+      articleCount: dominant.articleCount,
+      sourceCount: dominant.sourceCount,
+      latestPublishedAt: dominant.latestPublishedAt,
+      confirmed,
+      assessment: confirmed
+        ? `Señal repetida por ${dominant.sourceCount} fuentes en ${dominant.articleCount} notas.`
+        : 'Hay una historia destacada, pero todavía no alcanza para tratarla como problema dominante.'
+    } : {
+      title: null,
+      articleCount: 0,
+      sourceCount: 0,
+      latestPublishedAt: null,
+      confirmed: false,
+      assessment: 'Todavía no hay una historia dominante con evidencia suficiente.'
+    }
+  };
+}
+
+async function augmentMonitor(response) {
+  if (!response.ok) return response;
+  const data = await response.clone().json().catch(() => null);
+  if (!data?.ok || !Array.isArray(data.articles)) return response;
+  const summary = summarizeMonitorStories(data.articles);
+
+  const headers = new Headers(response.headers);
+  headers.delete('content-length');
+  headers.set('content-type', 'application/json; charset=utf-8');
+  return new Response(JSON.stringify({ ...data, ...summary }), {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
+}
+
+export { summarizeMonitorStories };
+
 export default {
   async fetch(request, env, ctx) {
     const response = await baseWorker.fetch(request, env, ctx);
     const url = new URL(request.url);
     if (url.pathname === '/api/radar') {
       return augmentRadar(response, env);
+    }
+    if (url.pathname === '/api/monitor') {
+      return augmentMonitor(response);
     }
     return response;
   },
