@@ -48,36 +48,15 @@ CREATE INDEX IF NOT EXISTS idx_monitor_articles_last_seen
 
 INSERT INTO monitors (id, name, query, scope, span, enabled, created_at, updated_at)
 VALUES
-  (
-    'salud-caba',
-    'Salud CABA',
-    'salud CABA',
-    'argentina',
-    '1d',
-    1,
-    strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
-    strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-  ),
-  (
-    'hospitales-caba',
-    'Hospitales CABA',
-    'hospitales CABA',
-    'argentina',
-    '1d',
-    1,
-    strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
-    strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-  ),
-  (
-    'subte-caba',
-    'Subte CABA',
-    'subte CABA',
-    'argentina',
-    '1d',
-    1,
-    strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
-    strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-  )
+  ('salud-caba','Salud CABA','salud CABA','argentina','1d',1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  ('hospitales-caba','Hospitales CABA','hospitales CABA','argentina','1d',1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  ('subte-caba','Subte CABA','subte CABA','argentina','1d',1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  ('servicios-caba','Servicios y cortes','cortes servicios CABA','argentina','1d',1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  ('educacion-caba','Educación CABA','escuelas CABA','argentina','1d',1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  ('seguridad-caba','Seguridad CABA','seguridad CABA','argentina','1d',1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  ('limpieza-caba','Limpieza y residuos','basura limpieza CABA','argentina','1d',1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  ('vivienda-obras-caba','Vivienda y obras','vivienda obras CABA','argentina','1d',1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  ('espacio-publico-caba','Espacio público','espacio público CABA','argentina','1d',1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 ON CONFLICT(id) DO UPDATE SET
   name = excluded.name,
   query = excluded.query,

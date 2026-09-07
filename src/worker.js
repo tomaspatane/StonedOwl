@@ -1,5 +1,16 @@
 import baseWorker from '../worker-v07.js';
+import { groupStories } from './articles.js';
+import { captureIncidentMonitors } from './incident-capture.js';
+import { summarizeGeo } from './geo-caba.js';
 import { classifyMomentum, explainMomentum } from './radar-signals.js';
+import { summarizeTerritory } from './territory.js';
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }
+  });
+}
 
 async function countNewArticles(db, monitorId, previousAt, latestAt) {
   if (!db || !previousAt || !latestAt) return 0;
@@ -47,17 +58,136 @@ async function augmentRadar(response, env) {
   });
 }
 
+function storyInput(article) {
+  return {
+    title: article.title,
+    url: article.url,
+    source: article.source || article.provider || 'Fuente',
+    provider: article.provider,
+    date: article.published_at || article.last_seen_at || article.first_seen_at,
+    description: ''
+  };
+}
+
+function geoLabel(geo = {}) {
+  const parts = [];
+  if (geo.entities?.length) parts.push(geo.entities.slice(0, 2).join(', '));
+  else if (geo.stations?.length) parts.push(`Estación ${geo.stations.slice(0, 2).join(', ')}`);
+  if (geo.barrios?.length) parts.push(geo.barrios.slice(0, 2).join(', '));
+  if (geo.communes?.length) parts.push(`Comuna ${geo.communes.slice(0, 2).join('/')}`);
+  return parts.join(' · ');
+}
+
+function summarizeMonitorStories(articles = []) {
+  const valid = articles
+    .map(storyInput)
+    .filter(article => article.title && article.url && article.date);
+  const grouped = groupStories(valid).slice(0, 8);
+  const stories = grouped.map(story => ({ ...story, geo: summarizeGeo(story.articles) }));
+  const dominant = stories[0] || null;
+  const confirmed = Boolean(dominant && dominant.sourceCount >= 2);
+  const dominantLocation = dominant ? geoLabel(dominant.geo) : '';
+
+  return {
+    geo: summarizeGeo(valid),
+    stories,
+    dominantSignal: dominant ? {
+      title: dominant.title,
+      articleCount: dominant.articleCount,
+      sourceCount: dominant.sourceCount,
+      latestPublishedAt: dominant.latestPublishedAt,
+      confirmed,
+      geo: dominant.geo,
+      locationLabel: dominantLocation || null,
+      assessment: confirmed
+        ? `${dominantLocation ? `${dominantLocation}. ` : ''}Señal repetida por ${dominant.sourceCount} fuentes en ${dominant.articleCount} notas.`
+        : `${dominantLocation ? `${dominantLocation}. ` : ''}Hay una historia destacada, pero todavía no alcanza para tratarla como problema dominante.`
+    } : {
+      title: null,
+      articleCount: 0,
+      sourceCount: 0,
+      latestPublishedAt: null,
+      confirmed: false,
+      geo: { barrios: [], communes: [], stations: [], entities: [] },
+      locationLabel: null,
+      assessment: 'Todavía no hay una historia dominante con evidencia suficiente.'
+    }
+  };
+}
+
+async function augmentMonitor(response) {
+  if (!response.ok) return response;
+  const data = await response.clone().json().catch(() => null);
+  if (!data?.ok || !Array.isArray(data.articles)) return response;
+  const summary = summarizeMonitorStories(data.articles);
+
+  const headers = new Headers(response.headers);
+  headers.delete('content-length');
+  headers.set('content-type', 'application/json; charset=utf-8');
+  return new Response(JSON.stringify({ ...data, ...summary }), {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
+}
+
+async function handleTerritory(db) {
+  if (!db) return json({ ok: false, error: 'Ranking territorial sin base de datos disponible.' }, 503);
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { results } = await db.prepare(`
+    SELECT DISTINCT
+      m.id AS monitor_id,
+      m.name AS monitor_name,
+      a.id AS article_id,
+      a.title,
+      a.url,
+      a.source,
+      a.published_at,
+      ma.first_seen_at,
+      ma.last_seen_at
+    FROM monitor_articles ma
+    JOIN monitors m ON m.id = ma.monitor_id
+    JOIN articles a ON a.id = ma.article_id
+    WHERE m.enabled = 1
+      AND ma.last_seen_at >= ?
+    ORDER BY ma.last_seen_at DESC
+    LIMIT 600
+  `).bind(since).all();
+
+  const ranking = summarizeTerritory(results || []);
+  return json({
+    ok: true,
+    since,
+    generatedAt: new Date().toISOString(),
+    ...ranking,
+    communes: ranking.communes.slice(0, 15),
+    barrios: ranking.barrios.slice(0, 20)
+  });
+}
+
+export { summarizeMonitorStories, handleTerritory };
+
 export default {
   async fetch(request, env, ctx) {
-    const response = await baseWorker.fetch(request, env, ctx);
     const url = new URL(request.url);
+    if (url.pathname === '/api/territory') return handleTerritory(env.DB);
+
+    const response = await baseWorker.fetch(request, env, ctx);
     if (url.pathname === '/api/radar') {
       return augmentRadar(response, env);
+    }
+    if (url.pathname === '/api/monitor') {
+      return augmentMonitor(response);
     }
     return response;
   },
 
   async scheduled(controller, env, ctx) {
-    return baseWorker.scheduled(controller, env, ctx);
+    console.log(JSON.stringify({ message: 'scheduled incident capture started', cron: controller.cron }));
+    if (!env.DB) {
+      console.error(JSON.stringify({ message: 'scheduled incident capture skipped', error: 'DB binding no disponible' }));
+      return;
+    }
+    ctx.waitUntil(captureIncidentMonitors(env.DB));
   }
 };
