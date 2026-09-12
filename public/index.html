@@ -3,21 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>StonedOwl v0.7</title>
+<title>StonedOwl v0.8</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="app">
   <header class="top">
     <div class="brand"><div class="logo">🦉</div><div><h1>StonedOwl</h1><div class="sub">Social listening con fuentes abiertas</div></div></div>
-    <div class="ver">WEB · V0.7</div>
+    <div class="ver">WEB · V0.8</div>
   </header>
 
   <section class="panel search">
     <h2>¿Qué querés escuchar?</h2>
-    <p>Buscá una persona, organización, tema o conflicto.</p>
+    <p>Buscá un tema puntual o corré el Radar CABA para detectar problemas urbanos por categoría.</p>
     <div class="row">
-      <input id="q" placeholder="Ej.: Milei, hospitales CABA, subte" autofocus>
+      <input id="q" placeholder="Ej.: subte, basura Caballito, baches" autofocus>
       <select id="span">
         <option value="1d">Últimas 24 h</option>
         <option value="3d">Últimos 3 días</option>
@@ -29,8 +29,9 @@
         <option value="world">Todo el mundo</option>
       </select>
       <button id="go">Escuchar</button>
+      <button id="radar" class="secondary">Radar CABA</button>
     </div>
-    <div class="status"><span class="dot" id="dot"></span><span id="status">Escribí un tema para empezar.</span></div>
+    <div class="status"><span class="dot" id="dot"></span><span id="status">Escribí un tema o corré el Radar CABA.</span></div>
   </section>
 
   <section class="metrics">
@@ -40,19 +41,27 @@
     <div class="metric"><span>Fuentes activas</span><b id="m4">—</b><small id="m4sub">backend</small></div>
   </section>
 
+  <section class="card radar-card">
+    <div class="head"><h3>Radar de problemas de CABA</h3><span id="radarLabel">sin correr</span></div>
+    <div class="radar-grid" id="radarResults">
+      <div class="empty"><strong>4 categorías iniciales</strong>Transporte · Limpieza · Infraestructura · Seguridad</div>
+    </div>
+    <div class="radar-note" id="radarNote">La señal actual mide volumen de cobertura y diversidad de fuentes. Todavía no implica crecimiento histórico.</div>
+  </section>
+
   <main class="layout">
     <article class="card">
       <div class="head"><h3>Noticias encontradas</h3><span id="label">Sin búsqueda</span></div>
-      <div class="list" id="articles"><div class="empty"><strong>Probemos con “Milei”</strong>Los resultados van a aparecer acá.</div></div>
+      <div class="list" id="articles"><div class="empty"><strong>Probemos con “subte”</strong>Los resultados van a aparecer acá.</div></div>
     </article>
     <aside class="right">
       <article class="card"><div class="head"><h3>Medios con más resultados</h3><span>muestra actual</span></div><div class="body" id="media"><div class="empty"><strong>Fuentes</strong>Acá vas a ver qué medios concentran la cobertura.</div></div></article>
-      <article class="card"><div class="head"><h3>Diagnóstico</h3><span>fuentes</span></div><div class="body"><div class="callout" id="diag">Bing News está disponible.</div></div></article>
+      <article class="card"><div class="head"><h3>Diagnóstico</h3><span>fuentes</span></div><div class="body"><div class="callout" id="diag">Bing News, GDELT y Google News configurados.</div></div></article>
       <article class="card"><div class="head"><h3>Google Trends</h3></div><div class="body"><a class="btn" id="trends" href="https://trends.google.com/trends/" target="_blank" rel="noopener">Abrir Google Trends ↗</a></div></article>
     </aside>
   </main>
 
-  <footer>StonedOwl v0.7 · Bing News activo.</footer>
+  <footer>StonedOwl v0.8 · Radar CABA: taxonomía urbana + fuentes abiertas.</footer>
 </div>
 <script src="app.js"></script>
 </body>
