@@ -1,6 +1,59 @@
 const SPAN_MAP = { '1d': '1d', '3d': '3d', '1w': '7d', '1m': '30d' };
 const SPAN_MS = { '1d': 86400000, '3d': 259200000, '1w': 604800000, '1m': 2592000000 };
 
+const CABA_TAXONOMY = [
+  {
+    id: 'transporte',
+    label: 'Transporte y movilidad',
+    query: '(subte OR colectivo OR tránsito OR transito OR vereda OR ciclovía OR ciclovia) CABA',
+    subtopics: {
+      subte_demoras: ['subte','demora','interrupción','interrupcion','frecuencia','servicio'],
+      subte_saturacion: ['subte','lleno','saturado','aglomeración','aglomeracion','hora pico'],
+      estaciones: ['estación','estacion','escalera','filtración','filtracion','andén','anden'],
+      colectivos: ['colectivo','bondi','parada','recorrido','frecuencia'],
+      transito: ['tránsito','transito','embotellamiento','semáforo','semaforo','corte'],
+      peaton_ciclista: ['vereda','rampa','ciclovía','ciclovia','peatón','peaton']
+    }
+  },
+  {
+    id: 'limpieza',
+    label: 'Limpieza urbana',
+    query: '(basura OR contenedor OR recolección OR recoleccion OR ratas OR suciedad) CABA',
+    subtopics: {
+      contenedores: ['contenedor','rebalsado','desbordado'],
+      basura: ['basura','residuos','suciedad','mugre'],
+      recoleccion: ['recolección','recoleccion','no pasan','camión','camion'],
+      plagas: ['ratas','roedores','plaga'],
+      poda: ['poda','ramas','restos verdes']
+    }
+  },
+  {
+    id: 'infraestructura',
+    label: 'Infraestructura y espacio público',
+    query: '(bache OR vereda OR luminaria OR plaza OR inundación OR inundacion OR obra) CABA',
+    subtopics: {
+      baches: ['bache','pozo','calzada'],
+      veredas: ['vereda','baldosa','rampa'],
+      iluminacion: ['luminaria','luz','oscuro','alumbrado'],
+      plazas: ['plaza','juegos','espacio público','espacio publico'],
+      inundaciones: ['inundación','inundacion','desagüe','desague','anegado'],
+      obras: ['obra','obra parada','obra eterna','vallado']
+    }
+  },
+  {
+    id: 'seguridad',
+    label: 'Seguridad y convivencia',
+    query: '(robo OR inseguridad OR motochorro OR arrebato OR entradera OR trapito OR ruido) CABA',
+    subtopics: {
+      robos: ['robo','robos','choreo','inseguridad'],
+      arrebatos: ['arrebato','motochorro','motochorros'],
+      entraderas: ['entradera','entraderas'],
+      espacio_publico: ['pelea','violencia','trapito','trapitos'],
+      nocturnidad: ['ruido','ruidos molestos','boliche','nocturnidad']
+    }
+  }
+];
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 }
@@ -10,12 +63,13 @@ function sourceFromTitle(title=''){const parts=String(title).split(' - ');return
 function cleanBingUrl(url=''){try{const u=new URL(url);if(u.hostname.includes('bing.com')&&u.pathname.includes('apiclick'))return u.searchParams.get('url')||url;}catch{}return url;}
 function withinSpan(date,span){const d=new Date(date);if(Number.isNaN(d.getTime()))return true;return Date.now()-d.getTime()<=(SPAN_MS[span]||SPAN_MS['1w'])+3600000;}
 async function fetchWithTimeout(url,options={},timeoutMs=9000){const c=new AbortController();const t=setTimeout(()=>c.abort('timeout'),timeoutMs);try{return await fetch(url,{...options,signal:c.signal});}finally{clearTimeout(t);}}
+function normalizeText(s=''){return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
 
 async function fetchBingNews(q,scope,span){
   let query=q;if(scope==='argentina')query+=' Argentina';
   const u=new URL('https://www.bing.com/news/search');
   u.searchParams.set('q',query);u.searchParams.set('format','RSS');u.searchParams.set('mkt','es-AR');u.searchParams.set('setlang','es');u.searchParams.set('cc','AR');u.searchParams.set('qft','sortbydate="1"');
-  const r=await fetchWithTimeout(u.toString(),{headers:{accept:'application/rss+xml, application/xml, text/xml, */*','user-agent':'Mozilla/5.0 (compatible; StonedOwl/0.7)'}});
+  const r=await fetchWithTimeout(u.toString(),{headers:{accept:'application/rss+xml, application/xml, text/xml, */*','user-agent':'Mozilla/5.0 (compatible; StonedOwl/0.8)'}});
   const xml=await r.text();if(!r.ok)throw new Error(`HTTP ${r.status}: ${xml.slice(0,220)}`);
   const items=[...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].slice(0,80);
   const articles=items.map(m=>{const b=m[1];const title=tag(b,'title');const url=cleanBingUrl(tag(b,'link'));const date=tag(b,'pubDate');return{title,url,source:sourceFromTitle(title),date,provider:'Bing News'};}).filter(a=>a.url&&a.title&&withinSpan(a.date,span));
@@ -39,6 +93,55 @@ async function fetchGoogleNews(q,scope,span){
 function dedupe(items){const seen=new Set();return items.filter(a=>{const key=(a.title||a.url).toLowerCase().replace(/\s+/g,' ').trim();if(seen.has(key))return false;seen.add(key);return true;});}
 function diag(result){return result.status==='fulfilled'?{ok:true,count:result.value.articles.length,query:result.value.query}:{ok:false,error:String(result.reason?.message||result.reason)};}
 async function runSources(q,scope,span){const [bing,gdelt,google]=await Promise.allSettled([fetchBingNews(q,scope,span),fetchGdelt(q,scope,span),fetchGoogleNews(q,scope,span)]);return{articles:dedupe([...(bing.status==='fulfilled'?bing.value.articles:[]),...(gdelt.status==='fulfilled'?gdelt.value.articles:[]),...(google.status==='fulfilled'?google.value.articles:[])]),diagnostics:{bingNews:diag(bing),gdelt:diag(gdelt),googleNews:diag(google)}};}
-async function handleHealth(){const checks={worker:{ok:true,time:new Date().toISOString()}};try{const r=await fetchWithTimeout('https://example.com/',{},8000);checks.internet={ok:r.ok,status:r.status};}catch(e){checks.internet={ok:false,error:String(e?.message||e)}}const {diagnostics}=await runSources('milei','argentina','1w');Object.assign(checks,diagnostics);return json({ok:true,checks});}
+
+function classifyArticles(articles, category){
+  const counts={};
+  for(const key of Object.keys(category.subtopics))counts[key]=0;
+  for(const article of articles){
+    const text=normalizeText(article.title);
+    for(const [key,terms] of Object.entries(category.subtopics)){
+      if(terms.some(term=>text.includes(normalizeText(term))))counts[key]++;
+    }
+  }
+  return Object.entries(counts)
+    .map(([id,count])=>({id,label:id.replace(/_/g,' '),count}))
+    .filter(x=>x.count>0)
+    .sort((a,b)=>b.count-a.count);
+}
+
+function signalLevel(count, sources){
+  if(count>=18 && sources>=6)return 'alta';
+  if(count>=8 && sources>=3)return 'media';
+  return 'baja';
+}
+
+async function handleCaba(request){
+  const u=new URL(request.url);
+  const span=SPAN_MAP[u.searchParams.get('span')]?u.searchParams.get('span'):'1w';
+  const settled=await Promise.allSettled(CABA_TAXONOMY.map(async category=>{
+    const {articles,diagnostics}=await runSources(category.query,'argentina',span);
+    const cabaArticles=articles.filter(a=>{
+      const t=normalizeText(a.title);
+      return t.includes('caba')||t.includes('buenos aires')||t.includes('porten')||t.includes('ciudad');
+    });
+    const usable=cabaArticles.length?cabaArticles:articles;
+    const sources=new Set(usable.map(a=>a.source).filter(Boolean)).size;
+    return {
+      id:category.id,
+      label:category.label,
+      query:category.query,
+      count:usable.length,
+      sources,
+      signal:signalLevel(usable.length,sources),
+      subtopics:classifyArticles(usable,category),
+      articles:usable.slice(0,12),
+      diagnostics
+    };
+  }));
+  const categories=settled.map((r,i)=>r.status==='fulfilled'?r.value:{id:CABA_TAXONOMY[i].id,label:CABA_TAXONOMY[i].label,count:0,sources:0,signal:'baja',subtopics:[],articles:[],error:String(r.reason?.message||r.reason)});
+  return json({ok:true,span,scope:'CABA',categories,fetchedAt:new Date().toISOString(),note:'La señal mide cobertura actual y diversidad de fuentes. Todavía no mide crecimiento histórico ni incorpora Reddit.'});
+}
+
+async function handleHealth(){const checks={worker:{ok:true,time:new Date().toISOString()}};try{const r=await fetchWithTimeout('https://example.com/',{},8000);checks.internet={ok:r.ok,status:r.status};}catch(e){checks.internet={ok:false,error:String(e?.message||e)}}const {diagnostics}=await runSources('subte CABA','argentina','1w');Object.assign(checks,diagnostics);return json({ok:true,checks});}
 async function handleNews(request){const u=new URL(request.url);const q=(u.searchParams.get('q')||'').trim();const scope=u.searchParams.get('scope')||'argentina';const span=SPAN_MAP[u.searchParams.get('span')]?u.searchParams.get('span'):'1w';if(q.length<2)return json({error:'Falta un término de búsqueda.'},400);const {articles,diagnostics}=await runSources(q,scope,span);return json({ok:articles.length>0,error:articles.length?null:'Las fuentes no devolvieron resultados.',query:q,scope,span,count:articles.length,articles,diagnostics,fetchedAt:new Date().toISOString()});}
-export default{async fetch(request,env){const u=new URL(request.url);if(u.pathname==='/api/health')return handleHealth();if(u.pathname==='/api/news'||u.pathname==='/api/gdelt')return handleNews(request);return env.ASSETS.fetch(request);}};
+export default{async fetch(request,env){const u=new URL(request.url);if(u.pathname==='/api/health')return handleHealth();if(u.pathname==='/api/caba')return handleCaba(request);if(u.pathname==='/api/news'||u.pathname==='/api/gdelt')return handleNews(request);return env.ASSETS.fetch(request);}};
