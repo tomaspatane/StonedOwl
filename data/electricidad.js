@@ -47,8 +47,10 @@ const groups = [
   {
     subfamily: 'consecuencia', signalType: 'consequence', weight: 4, tier: 'B', exact: true,
     phrases: [
-      'se quemó la heladera','se me quemó la heladera','se quemaron los electrodomésticos','perdí la comida',
-      'comida echada a perder','no funciona el ascensor','ascensor parado','no funciona la bomba de agua',
+      'se quemó la heladera','se me quemó la heladera','se quemó una heladera','heladera quemada',
+      'se quemaron los electrodomésticos','se quemó un electrodoméstico','se quemó el televisor',
+      'se quemó la computadora','se quemó el aire acondicionado','perdí la comida','comida echada a perder',
+      'no funciona el ascensor','ascensor parado','no funciona la bomba de agua',
       'edificio sin agua por falta de luz','semáforo apagado','semáforos apagados','calle a oscuras',
       'comercios cerrados por falta de luz','local sin luz','escuela sin luz','hospital sin luz'
     ]
