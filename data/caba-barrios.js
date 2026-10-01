@@ -50,7 +50,16 @@ export const CABA_BARRIOS = [
 ];
 
 export function normalizePlaceText(value = '') {
-  return String(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return String(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+export function findBarrioExact(value = '') {
+  const normalized = normalizePlaceText(value);
+  if (!normalized) return null;
+  return CABA_BARRIOS.find((barrio) => {
+    const names = [barrio.name, ...(barrio.aliases || [])].map(normalizePlaceText);
+    return names.includes(normalized);
+  }) || null;
 }
 
 export function detectBarrios(text = '') {
