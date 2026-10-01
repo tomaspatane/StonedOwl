@@ -1,13 +1,14 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fetchRedditElectricidad } from '../sources/reddit-electricidad.js';
+import { fetchSerperRedditElectricidad } from '../sources/serper-reddit.js';
 import { fetchEnreElectricidad } from '../sources/enre-electricidad.js';
-import { detectBarrios } from '../data/caba-barrios.js';
+import { detectBarrios, findBarrioExact } from '../data/caba-barrios.js';
 import { matchElectricSignals } from '../data/electricidad.js';
 
 function summarizeCitizen(article) {
   const text = `${article.title || ''} ${article.snippet || ''}`.trim();
   const barrios = detectBarrios(text).map((b) => ({ name: b.name, comuna: b.comuna }));
-  const signals = matchElectricSignals(text);
+  const signals = matchElectricSignals(text).filter((s) => !['entity', 'context'].includes(s.signalType));
   if (!barrios.length || !signals.length) return null;
   return {
     source: article.source,
@@ -22,8 +23,9 @@ function summarizeCitizen(article) {
 }
 
 function summarizeOfficial(record) {
-  const text = `${record.title || ''} ${record.snippet || ''} ${record.locality || ''} ${record.partido || ''}`;
-  const barrios = detectBarrios(text).map((b) => ({ name: b.name, comuna: b.comuna }));
+  const exact = findBarrioExact(record.locality || '');
+  const matches = exact ? [exact] : detectBarrios(record.locality || '');
+  const barrios = matches.map((b) => ({ name: b.name, comuna: b.comuna }));
   if (!barrios.length) return null;
   return {
     source: record.source,
@@ -42,15 +44,24 @@ function summarizeOfficial(record) {
   };
 }
 
+async function fetchCitizenSource() {
+  if (process.env.SERPER_API_KEY) {
+    const result = await fetchSerperRedditElectricidad('1d', process.env.SERPER_API_KEY);
+    return { ...result, mode: 'google-web-reddit' };
+  }
+  const result = await fetchRedditElectricidad('1d');
+  return { ...result, mode: 'direct-reddit-fallback' };
+}
+
 const startedAt = new Date().toISOString();
 const [redditResult, enreResult] = await Promise.allSettled([
-  fetchRedditElectricidad('1d'),
+  fetchCitizenSource(),
   fetchEnreElectricidad()
 ]);
 
 const reddit = redditResult.status === 'fulfilled'
   ? redditResult.value
-  : { articles: [], diagnostics: { fatal: String(redditResult.reason?.message || redditResult.reason) }, query: null };
+  : { articles: [], diagnostics: { fatal: String(redditResult.reason?.message || redditResult.reason) }, query: null, mode: 'error' };
 const enre = enreResult.status === 'fulfilled'
   ? enreResult.value
   : { records: [], diagnostics: { fatal: String(enreResult.reason?.message || enreResult.reason) }, totals: {} };
@@ -88,11 +99,11 @@ const radar = [...byBarrio.values()]
 
 const report = {
   ok: redditResult.status === 'fulfilled' || enreResult.status === 'fulfilled',
-  version: 'live-smoke-v1',
+  version: 'live-smoke-v2',
   startedAt,
   finishedAt: new Date().toISOString(),
   sourceHealth: {
-    reddit: reddit.diagnostics,
+    reddit: { mode: reddit.mode || null, diagnostics: reddit.diagnostics },
     enre: enre.diagnostics
   },
   enreTotals: enre.totals,
