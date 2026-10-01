@@ -1,7 +1,8 @@
 import baseWorker from './worker-v09.js';
-import { detectBarrios } from './data/caba-barrios.js';
+import { detectBarrios, findBarrioExact } from './data/caba-barrios.js';
 import { matchElectricSignals } from './data/electricidad.js';
 import { fetchRedditElectricidad } from './sources/reddit-electricidad.js';
+import { fetchSerperRedditElectricidad } from './sources/serper-reddit.js';
 import { fetchEnreElectricidad } from './sources/enre-electricidad.js';
 
 function json(data, status = 200) {
@@ -43,7 +44,10 @@ function statusFromScore(score) {
 }
 
 function sourceIdentity(mention) {
-  if (mention.sourceType === 'citizen' && mention.author) return `${mention.provider || 'citizen'}:${mention.author}`;
+  if (mention.sourceType === 'citizen') {
+    if (mention.author) return `${mention.provider || 'citizen'}:${mention.author}`;
+    if (mention.url) return `citizen:${normalizeText(String(mention.url).replace(/[?#].*$/, ''))}`;
+  }
   return mention.source || mention.provider || safeDomain(mention.url) || mention.url || mention.title;
 }
 
@@ -99,7 +103,7 @@ function redditMentions(articles = []) {
         snippet: article.snippet || '',
         url: article.url,
         source: article.source || safeDomain(article.url),
-        provider: 'Reddit',
+        provider: article.provider || 'Reddit',
         date: article.date,
         author: article.author || '',
         sourceType: 'citizen',
@@ -115,8 +119,8 @@ function redditMentions(articles = []) {
 function enreMentions(records = []) {
   const mentions = [];
   for (const record of records) {
-    const locationText = `${record.locality || ''} ${record.partido || ''} ${record.title || ''}`;
-    const barrios = detectBarrios(locationText);
+    const exact = findBarrioExact(record.locality || '');
+    const barrios = exact ? [exact] : detectBarrios(record.locality || '');
     if (!barrios.length) continue;
     for (const barrio of barrios) {
       mentions.push({
@@ -185,6 +189,15 @@ function sourceMix(local = []) {
   }, {})).sort((a, b) => b[1] - a[1]).map(([provider, count]) => ({ provider, count }));
 }
 
+async function fetchCitizenElectricity(span, env) {
+  if (env?.SERPER_API_KEY) {
+    const result = await fetchSerperRedditElectricidad(span, env.SERPER_API_KEY);
+    return { ...result, mode: 'google-web-reddit' };
+  }
+  const result = await fetchRedditElectricidad(span);
+  return { ...result, mode: 'direct-reddit-fallback' };
+}
+
 async function handleElectricidadV10(request, env) {
   const baseResponse = await baseWorker.fetch(request, env);
   let base;
@@ -194,13 +207,13 @@ async function handleElectricidadV10(request, env) {
 
   const span = base.span || '1d';
   const [redditResult, enreResult] = await Promise.allSettled([
-    fetchRedditElectricidad(span),
+    fetchCitizenElectricity(span, env),
     fetchEnreElectricidad()
   ]);
 
   const reddit = redditResult.status === 'fulfilled'
     ? redditResult.value
-    : { articles: [], diagnostics: { error: String(redditResult.reason?.message || redditResult.reason) } };
+    : { articles: [], diagnostics: { error: String(redditResult.reason?.message || redditResult.reason) }, mode: 'error' };
   const enre = enreResult.status === 'fulfilled'
     ? enreResult.value
     : { records: [], diagnostics: { error: String(enreResult.reason?.message || enreResult.reason) }, totals: {} };
@@ -233,17 +246,18 @@ async function handleElectricidadV10(request, env) {
     ...base,
     version: '0.10-electricidad-sources',
     provisional: true,
-    methodology: 'El score exploratorio combina web/noticias con relatos ciudadanos de Reddit y confirmación oficial del ENRE. Intensidad y confianza siguen separadas. Todavía no usa baseline histórico, por lo que los colores deben leerse como señales operativas del piloto.',
+    methodology: 'El score exploratorio combina web/noticias con relatos ciudadanos encontrados en Reddit y confirmación oficial del ENRE. Cuando SERPER_API_KEY está disponible, Reddit se descubre vía Google Web para evitar bloqueos directos. Intensidad y confianza siguen separadas. Todavía no usa baseline histórico.',
     coverage: {
       ...(base.coverage || {}),
       redditRaw: (reddit.articles || []).length,
       redditUsableMentions: fromReddit.length,
+      redditMode: reddit.mode || null,
       enreRawRecords: (enre.records || []).length,
       enreUsableMentions: fromEnre.length,
       totalUsableMentions: mentions.length
     },
     directSources: {
-      reddit: { diagnostics: reddit.diagnostics || {}, query: reddit.query || null },
+      reddit: { mode: reddit.mode || null, diagnostics: reddit.diagnostics || {}, query: reddit.query || null },
       enre: { diagnostics: enre.diagnostics || {}, totals: enre.totals || {} }
     },
     radar,
