@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:electricidad": "node tests/electricidad-parser.mjs"
+    "test": "npm run test:electricidad && npm run test:sources",
+    "test:electricidad": "node tests/electricidad-parser.mjs",
+    "test:sources": "node tests/source-parsers.mjs"
   }
 }
