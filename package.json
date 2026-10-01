@@ -5,6 +5,7 @@
   "scripts": {
     "test": "npm run test:electricidad && npm run test:sources",
     "test:electricidad": "node tests/electricidad-parser.mjs",
-    "test:sources": "node tests/source-parsers.mjs"
+    "test:sources": "node tests/source-parsers.mjs",
+    "smoke:electricidad": "node scripts/live-electricidad-smoke.mjs"
   }
 }
