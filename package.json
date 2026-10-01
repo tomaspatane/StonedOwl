@@ -1,0 +1,8 @@
+{
+  "name": "stonedowl",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:electricidad": "node tests/electricidad-parser.mjs"
+  }
+}
