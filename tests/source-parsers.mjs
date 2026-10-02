@@ -3,6 +3,7 @@ import { parseRedditAtom } from '../sources/reddit-electricidad.js';
 import { parseEnrePayload, flattenEnreCuts } from '../sources/enre-electricidad.js';
 import { buildTerritorialPlan, fetchSerperElectricidadTerritorial } from '../sources/serper-electricidad-territorial.js';
 import { confirmTargetBarrioInResult } from '../data/caba-barrios.js';
+import { classifyElectricEvidence } from '../data/electricidad-evidence.js';
 
 const redditFixture = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
@@ -93,5 +94,48 @@ const conflictingTarget = confirmTargetBarrioInResult({
 });
 assert.equal(conflictingTarget.barrio, null);
 assert.equal(conflictingTarget.reason, 'conflicting_non_caba_title');
+
+const directFlores = classifyElectricEvidence({
+  targetBarrio: 'Flores',
+  source: 'facebook.com',
+  provider: 'Google Web Territorial (Serper)',
+  title: 'Otra vez sin luz, para variar',
+  snippet: 'Vecinos de Flores: estamos sin luz desde anoche y todavía no volvió.'
+});
+assert.equal(directFlores.acceptedForBarrio, true);
+assert.equal(directFlores.assignmentScope, 'barrio');
+assert.equal(directFlores.evidenceQuality, 'direct_local_report');
+assert.ok(directFlores.reasonCodes.includes('persistence'));
+
+const citywide = classifyElectricEvidence({
+  targetBarrio: 'Flores',
+  source: 'facebook.com',
+  provider: 'Google Web Territorial (Serper)',
+  title: 'Apagón masivo en la Ciudad de Buenos Aires',
+  snippet: 'El corte afectó a barrios porteños como Palermo, Caballito, Mataderos y Flores.'
+});
+assert.equal(citywide.acceptedForBarrio, false);
+assert.equal(citywide.assignmentScope, 'citywide');
+assert.equal(citywide.evidenceQuality, 'citywide_event_mentions_barrio');
+
+const conflictEvidence = classifyElectricEvidence({
+  targetBarrio: 'Caballito',
+  source: 'facebook.com',
+  provider: 'Google Web Territorial (Serper)',
+  title: 'Naturgy explicó qué provocó el apagón masivo en San Juan',
+  snippet: 'La página menciona Caballito entre otros términos indexados.'
+});
+assert.equal(conflictEvidence.acceptedForBarrio, false);
+assert.equal(conflictEvidence.assignmentScope, 'unknown');
+assert.equal(conflictEvidence.evidenceQuality, 'conflicting_geo');
+
+const irrelevant = classifyElectricEvidence({
+  targetBarrio: 'Flores',
+  source: 'roomix.ai',
+  title: 'Venta de monoambiente en Flores',
+  snippet: 'Departamento de 33 m2 con balcón y sauna.'
+});
+assert.equal(irrelevant.acceptedForBarrio, false);
+assert.equal(irrelevant.evidenceQuality, 'irrelevant');
 
 console.log('Source parser fixtures: OK');
