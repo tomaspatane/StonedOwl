@@ -79,6 +79,19 @@ export function detectBarrios(text = '') {
   return CABA_BARRIOS.filter((barrio) => barrioNames(barrio).some((name) => containsWholePhrase(text, name)));
 }
 
+export function confirmTargetBarrioInResult({ targetBarrio = '', title = '', snippet = '' } = {}) {
+  const barrio = findBarrioExact(targetBarrio);
+  if (!barrio) return { barrio: null, precision: 'low', reason: 'unknown_target_barrio' };
+
+  const titleMatch = barrioNames(barrio).some((name) => containsWholePhrase(title, name));
+  if (titleMatch) return { barrio, precision: 'high', reason: 'target_barrio_in_title' };
+
+  const snippetMatch = barrioNames(barrio).some((name) => containsWholePhrase(snippet, name));
+  if (snippetMatch) return { barrio, precision: 'medium', reason: 'target_barrio_in_snippet' };
+
+  return { barrio: null, precision: 'low', reason: 'target_barrio_not_in_result' };
+}
+
 function hasLocativeCue(text = '', barrio) {
   const normalized = normalizePlaceText(text);
   for (const rawName of barrioNames(barrio)) {
