@@ -3,6 +3,7 @@ import { detectBarrios, findBarrioExact } from './data/caba-barrios.js';
 import { matchElectricSignals } from './data/electricidad.js';
 import { fetchRedditElectricidad } from './sources/reddit-electricidad.js';
 import { fetchSerperRedditElectricidad } from './sources/serper-reddit.js';
+import { fetchSerperElectricidad } from './sources/serper-electricidad.js';
 import { fetchEnreElectricidad } from './sources/enre-electricidad.js';
 
 function json(data, status = 200) {
@@ -86,7 +87,7 @@ function scoreBarrio(mentions) {
   };
 }
 
-function redditMentions(articles = []) {
+function extractMentions(articles = [], sourceType = 'web') {
   const mentions = [];
   for (const article of articles) {
     const text = `${article.title || ''} ${article.snippet || ''}`;
@@ -103,10 +104,10 @@ function redditMentions(articles = []) {
         snippet: article.snippet || '',
         url: article.url,
         source: article.source || safeDomain(article.url),
-        provider: article.provider || 'Reddit',
+        provider: article.provider || 'Web',
         date: article.date,
         author: article.author || '',
-        sourceType: 'citizen',
+        sourceType,
         signalIds: meaningful.map((signal) => signal.id),
         signalPhrases: meaningful.map((signal) => signal.phrase),
         maxWeight
@@ -150,7 +151,6 @@ function dedupeMentions(mentions = []) {
     const url = normalizeText(String(mention.url || '').replace(/[?#].*$/, ''));
     const key = [
       mention.barrio,
-      mention.provider,
       url,
       normalizeText(mention.title),
       normalizeText(mention.snippet).slice(0, 180)
@@ -206,22 +206,27 @@ async function handleElectricidadV10(request, env) {
   if (!base?.ok) return json(base, baseResponse.status || 500);
 
   const span = base.span || '1d';
-  const [redditResult, enreResult] = await Promise.allSettled([
+  const [redditResult, webResult, enreResult] = await Promise.allSettled([
     fetchCitizenElectricity(span, env),
+    fetchSerperElectricidad(span, env?.SERPER_API_KEY || ''),
     fetchEnreElectricidad()
   ]);
 
   const reddit = redditResult.status === 'fulfilled'
     ? redditResult.value
     : { articles: [], diagnostics: { error: String(redditResult.reason?.message || redditResult.reason) }, mode: 'error' };
+  const web = webResult.status === 'fulfilled'
+    ? webResult.value
+    : { articles: [], diagnostics: { error: String(webResult.reason?.message || webResult.reason) }, queries: [] };
   const enre = enreResult.status === 'fulfilled'
     ? enreResult.value
     : { records: [], diagnostics: { error: String(enreResult.reason?.message || enreResult.reason) }, totals: {} };
 
   const inherited = existingMentionsFromRadar(base.radar || []);
-  const fromReddit = redditMentions(reddit.articles || []);
+  const fromReddit = extractMentions(reddit.articles || [], 'citizen');
+  const fromWeb = extractMentions(web.articles || [], 'web');
   const fromEnre = enreMentions(enre.records || []);
-  const mentions = dedupeMentions([...inherited, ...fromReddit, ...fromEnre]);
+  const mentions = dedupeMentions([...inherited, ...fromReddit, ...fromWeb, ...fromEnre]);
 
   const radar = (base.radar || []).map((row) => {
     const local = mentions.filter((mention) => mention.barrio === row.barrio);
@@ -244,20 +249,23 @@ async function handleElectricidadV10(request, env) {
 
   return json({
     ...base,
-    version: '0.10-electricidad-sources',
+    version: '0.11-electricidad-serper',
     provisional: true,
-    methodology: 'El score exploratorio combina web/noticias con relatos ciudadanos encontrados en Reddit y confirmación oficial del ENRE. Cuando SERPER_API_KEY está disponible, Reddit se descubre vía Google Web para evitar bloqueos directos. Intensidad y confianza siguen separadas. Todavía no usa baseline histórico.',
+    methodology: 'El score exploratorio combina web/noticias, Google Web con consultas simples compatibles con Serper, relatos ciudadanos encontrados en Reddit y confirmación oficial del ENRE. Intensidad y confianza siguen separadas. Todavía no usa baseline histórico.',
     coverage: {
       ...(base.coverage || {}),
       redditRaw: (reddit.articles || []).length,
       redditUsableMentions: fromReddit.length,
       redditMode: reddit.mode || null,
+      serperWebRaw: (web.articles || []).length,
+      serperWebUsableMentions: fromWeb.length,
       enreRawRecords: (enre.records || []).length,
       enreUsableMentions: fromEnre.length,
       totalUsableMentions: mentions.length
     },
     directSources: {
       reddit: { mode: reddit.mode || null, diagnostics: reddit.diagnostics || {}, query: reddit.query || null },
+      googleWeb: { diagnostics: web.diagnostics || {}, queries: web.queries || [] },
       enre: { diagnostics: enre.diagnostics || {}, totals: enre.totals || {} }
     },
     radar,
