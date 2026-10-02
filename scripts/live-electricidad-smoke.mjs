@@ -4,35 +4,16 @@ import { fetchSerperRedditElectricidad } from '../sources/serper-reddit.js';
 import { fetchSerperElectricidad } from '../sources/serper-electricidad.js';
 import { fetchSerperElectricidadTerritorial } from '../sources/serper-electricidad-territorial.js';
 import { fetchEnreElectricidad } from '../sources/enre-electricidad.js';
-import { confirmTargetBarrioInResult, detectBarrios, findBarrioExact, resolveBarriosFromResult } from '../data/caba-barrios.js';
+import { detectBarrios, findBarrioExact, resolveBarriosFromResult } from '../data/caba-barrios.js';
+import { classifyElectricEvidence } from '../data/electricidad-evidence.js';
 import { matchElectricSignals } from '../data/electricidad.js';
 
 const TERRITORIAL_PILOT = ['Flores', 'Caballito', 'Almagro', 'Villa Lugano', 'Villa Riachuelo', 'Constitución'];
 
-function summarizeSignal(article, sourceType = 'web') {
+function summarizeGeneralSignal(article, sourceType = 'web') {
   const text = `${article.title || ''} ${article.snippet || ''}`.trim();
-  let resolved = [];
-  let geoPrecision = 'low';
-  let geoReason = 'no_barrio';
-
-  if (article.targetBarrio) {
-    const targeted = confirmTargetBarrioInResult({
-      targetBarrio: article.targetBarrio,
-      title: article.title || '',
-      snippet: article.snippet || ''
-    });
-    if (!targeted.barrio) return null;
-    resolved = [targeted.barrio];
-    geoPrecision = targeted.precision;
-    geoReason = targeted.reason;
-  } else {
-    const geo = resolveBarriosFromResult({ title: article.title || '', snippet: article.snippet || '' });
-    resolved = geo.barrios;
-    geoPrecision = geo.precision;
-    geoReason = geo.reason;
-  }
-
-  const barrios = resolved.map((b) => ({ name: b.name, comuna: b.comuna }));
+  const geo = resolveBarriosFromResult({ title: article.title || '', snippet: article.snippet || '' });
+  const barrios = geo.barrios.map((b) => ({ name: b.name, comuna: b.comuna }));
   const signals = matchElectricSignals(text).filter((s) => !['entity', 'context'].includes(s.signalType));
   if (!barrios.length || !signals.length) return null;
   return {
@@ -41,14 +22,59 @@ function summarizeSignal(article, sourceType = 'web') {
     sourceType,
     date: article.date,
     title: article.title,
+    snippet: article.snippet || '',
     url: article.url,
     barrios,
-    targetBarrio: article.targetBarrio || null,
+    targetBarrio: null,
     query: article.query || null,
-    geoPrecision,
-    geoReason,
+    geoPrecision: geo.precision,
+    geoReason: geo.reason,
+    evidenceQuality: 'legacy_geo_filter',
+    assignmentScope: 'barrio',
     signals: signals.map((s) => ({ phrase: s.phrase, subfamily: s.subfamily, weight: s.baseWeight })),
     maxWeight: Math.max(...signals.map((s) => s.baseWeight))
+  };
+}
+
+function evaluateTerritorialArticle(article) {
+  const classification = classifyElectricEvidence({
+    title: article.title || '',
+    snippet: article.snippet || '',
+    targetBarrio: article.targetBarrio || '',
+    source: article.source || '',
+    provider: article.provider || ''
+  });
+
+  if (!classification.acceptedForBarrio) return { article, classification, signal: null };
+
+  const barrio = findBarrioExact(article.targetBarrio || classification.targetBarrio || '');
+  if (!barrio) return { article, classification, signal: null };
+  const text = `${article.title || ''} ${article.snippet || ''}`.trim();
+  const signals = matchElectricSignals(text).filter((s) => !['entity', 'context'].includes(s.signalType));
+  if (!signals.length) return { article, classification, signal: null };
+
+  return {
+    article,
+    classification,
+    signal: {
+      source: article.source,
+      provider: article.provider,
+      sourceType: 'territorial_web',
+      date: article.date,
+      title: article.title,
+      snippet: article.snippet || '',
+      url: article.url,
+      barrios: [{ name: barrio.name, comuna: barrio.comuna }],
+      targetBarrio: barrio.name,
+      query: article.query || null,
+      geoPrecision: classification.geoPrecision || null,
+      geoReason: classification.geoReason || null,
+      evidenceQuality: classification.evidenceQuality,
+      assignmentScope: classification.assignmentScope,
+      reasonCodes: classification.reasonCodes,
+      signals: signals.map((s) => ({ phrase: s.phrase, subfamily: s.subfamily, weight: s.baseWeight })),
+      maxWeight: Math.max(...signals.map((s) => s.baseWeight))
+    }
   };
 }
 
@@ -63,10 +89,13 @@ function summarizeOfficial(record) {
     sourceType: 'official',
     date: record.date,
     title: record.title,
+    snippet: record.snippet || '',
     url: record.url,
     barrios,
     geoPrecision: 'high',
     geoReason: 'structured_locality',
+    evidenceQuality: 'official',
+    assignmentScope: 'barrio',
     official: true,
     company: record.company,
     enreType: record.enreType,
@@ -117,21 +146,37 @@ const enre = enreResult.status === 'fulfilled'
   ? enreResult.value
   : { records: [], diagnostics: { fatal: String(enreResult.reason?.message || enreResult.reason) }, totals: {} };
 
-const citizenSignals = reddit.articles.map((article) => summarizeSignal(article, 'citizen')).filter(Boolean);
-const webSignals = web.articles.map((article) => summarizeSignal(article, 'web')).filter(Boolean);
-const territorialSignals = territorial.articles.map((article) => summarizeSignal(article, 'territorial_web')).filter(Boolean);
-const officialSignals = enre.records.map(summarizeOfficial).filter(Boolean);
-
-const territorialRejectedSample = territorial.articles
-  .filter((article) => !summarizeSignal(article, 'territorial_web'))
-  .slice(0, 12)
-  .map((article) => ({
-    targetBarrio: article.targetBarrio,
-    query: article.query,
-    title: article.title,
-    snippet: article.snippet,
-    source: article.source
+const citizenSignals = reddit.articles.map((article) => summarizeGeneralSignal(article, 'citizen')).filter(Boolean);
+const webSignals = web.articles.map((article) => summarizeGeneralSignal(article, 'web')).filter(Boolean);
+const territorialEvaluations = territorial.articles.map(evaluateTerritorialArticle);
+const territorialSignals = territorialEvaluations.map((item) => item.signal).filter(Boolean);
+const territorialCitywideSignals = territorialEvaluations
+  .filter((item) => item.classification.assignmentScope === 'citywide')
+  .map((item) => ({
+    targetBarrio: item.article.targetBarrio,
+    query: item.article.query,
+    title: item.article.title,
+    snippet: item.article.snippet,
+    source: item.article.source,
+    evidenceQuality: item.classification.evidenceQuality,
+    assignmentScope: item.classification.assignmentScope,
+    reasonCodes: item.classification.reasonCodes,
+    mentionedBarrios: item.classification.mentionedBarrios
   }));
+const territorialRejectedSample = territorialEvaluations
+  .filter((item) => !item.signal && item.classification.assignmentScope !== 'citywide')
+  .slice(0, 20)
+  .map((item) => ({
+    targetBarrio: item.article.targetBarrio,
+    query: item.article.query,
+    title: item.article.title,
+    snippet: item.article.snippet,
+    source: item.article.source,
+    evidenceQuality: item.classification.evidenceQuality,
+    assignmentScope: item.classification.assignmentScope,
+    reasonCodes: item.classification.reasonCodes
+  }));
+const officialSignals = enre.records.map(summarizeOfficial).filter(Boolean);
 
 const byBarrio = new Map();
 for (const item of [...citizenSignals, ...webSignals, ...territorialSignals, ...officialSignals]) {
@@ -167,9 +212,15 @@ const radar = [...byBarrio.values()]
   .map((item) => ({ ...item, sources: [...item.sources] }))
   .sort((a, b) => b.affectedUsers - a.affectedUsers || b.citizenMentions - a.citizenMentions || b.territorialWebMentions - a.territorialWebMentions || b.webMentions - a.webMentions || b.maxWeight - a.maxWeight);
 
+const qualityCounts = territorialEvaluations.reduce((acc, item) => {
+  const key = item.classification.evidenceQuality || 'unknown';
+  acc[key] = (acc[key] || 0) + 1;
+  return acc;
+}, {});
+
 const report = {
   ok: redditResult.status === 'fulfilled' || webResult.status === 'fulfilled' || territorialResult.status === 'fulfilled' || enreResult.status === 'fulfilled',
-  version: 'live-smoke-v6-target-confirmation',
+  version: 'live-smoke-v7-evidence-quality',
   startedAt,
   finishedAt: new Date().toISOString(),
   sourceHealth: {
@@ -185,16 +236,19 @@ const report = {
     googleWebRaw: web.articles.length,
     googleWebUsefulCaba: webSignals.length,
     territorialWebRaw: territorial.articles.length,
-    territorialWebUsefulCaba: territorialSignals.length,
+    territorialWebUsefulBarrio: territorialSignals.length,
+    territorialWebCitywide: territorialCitywideSignals.length,
     territorialQueries: territorial.plan?.queryCount || 0,
     enreRaw: enre.records.length,
     enreCaba: officialSignals.length,
     barriosWithSignal: radar.length
   },
+  territorialEvidenceQuality: qualityCounts,
   radar,
   citizenSignals: citizenSignals.slice(0, 30),
   webSignals: webSignals.slice(0, 50),
   territorialSignals: territorialSignals.slice(0, 50),
+  territorialCitywideSignals: territorialCitywideSignals.slice(0, 30),
   territorialRejectedSample,
   officialSignals: officialSignals.slice(0, 50)
 };
