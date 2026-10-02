@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { parseRedditAtom } from '../sources/reddit-electricidad.js';
 import { parseEnrePayload, flattenEnreCuts } from '../sources/enre-electricidad.js';
+import { buildTerritorialPlan, fetchSerperElectricidadTerritorial } from '../sources/serper-electricidad-territorial.js';
 
 const redditFixture = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
@@ -42,5 +43,38 @@ assert.equal(flores.enreType, 'baja_tension');
 assert.equal(caballito.affectedUsers, 1200);
 assert.equal(caballito.enreType, 'media_tension');
 assert.equal(caballito.official, true);
+
+const plan = buildTerritorialPlan({ barrios: ['Flores', 'Caballito'] });
+assert.equal(plan.barrios.length, 2);
+assert.equal(plan.queries.length, 4);
+assert.ok(plan.queries.some((item) => item.q === 'sin luz Flores CABA'));
+assert.ok(plan.queries.some((item) => item.q === 'corte de luz Caballito CABA'));
+
+const mockFetch = async (_url, options) => {
+  const body = JSON.parse(options.body);
+  assert.match(body.q, /Flores CABA$/);
+  return {
+    ok: true,
+    status: 200,
+    async text() {
+      return JSON.stringify({
+        organic: [{
+          title: 'Vecinos de Flores siguen sin luz',
+          snippet: 'El corte afecta a varias cuadras de Flores.',
+          link: `https://example.test/flores?query=${encodeURIComponent(body.q)}`,
+          date: 'Oct 2, 2026'
+        }]
+      });
+    }
+  };
+};
+
+const territorial = await fetchSerperElectricidadTerritorial('1d', 'test-key', { barrios: ['Flores'] }, mockFetch);
+assert.equal(territorial.disabled, false);
+assert.equal(territorial.plan.queryCount, 2);
+assert.equal(territorial.diagnostics.length, 2);
+assert.equal(territorial.articles.length, 1);
+assert.equal(territorial.articles[0].targetBarrio, 'Flores');
+assert.equal(territorial.articles[0].sourceType, 'territorial_web');
 
 console.log('Source parser fixtures: OK');
