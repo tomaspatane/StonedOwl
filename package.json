@@ -3,9 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "npm run test:electricidad && npm run test:sources",
+    "test": "npm run test:electricidad && npm run test:sources && npm run test:geo",
     "test:electricidad": "node tests/electricidad-parser.mjs",
     "test:sources": "node tests/source-parsers.mjs",
+    "test:geo": "node tests/geo-context.mjs",
     "smoke:electricidad": "node scripts/live-electricidad-smoke.mjs"
   }
 }
