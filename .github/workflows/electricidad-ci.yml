@@ -35,7 +35,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run live Reddit + ENRE probe
+      - name: Run live Google Web + ENRE probe
+        env:
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
         run: npm run smoke:electricidad
       - name: Upload live report
         if: always()
