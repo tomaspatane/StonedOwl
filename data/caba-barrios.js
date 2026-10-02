@@ -53,19 +53,72 @@ export function normalizePlaceText(value = '') {
   return String(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 }
 
+function escapeRegex(value = '') {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function containsWholePhrase(text = '', phrase = '') {
+  const normalizedText = normalizePlaceText(text);
+  const normalizedPhrase = normalizePlaceText(phrase);
+  if (!normalizedText || !normalizedPhrase) return false;
+  const pattern = escapeRegex(normalizedPhrase).replace(/\s+/g, '\\s+');
+  return new RegExp(`(^|[^a-z0-9])${pattern}([^a-z0-9]|$)`, 'i').test(normalizedText);
+}
+
+function barrioNames(barrio) {
+  return [barrio.name, ...(barrio.aliases || [])];
+}
+
 export function findBarrioExact(value = '') {
   const normalized = normalizePlaceText(value);
   if (!normalized) return null;
-  return CABA_BARRIOS.find((barrio) => {
-    const names = [barrio.name, ...(barrio.aliases || [])].map(normalizePlaceText);
-    return names.includes(normalized);
-  }) || null;
+  return CABA_BARRIOS.find((barrio) => barrioNames(barrio).map(normalizePlaceText).includes(normalized)) || null;
 }
 
 export function detectBarrios(text = '') {
+  return CABA_BARRIOS.filter((barrio) => barrioNames(barrio).some((name) => containsWholePhrase(text, name)));
+}
+
+function hasLocativeCue(text = '', barrio) {
   const normalized = normalizePlaceText(text);
-  return CABA_BARRIOS.filter((barrio) => {
-    const names = [barrio.name, ...(barrio.aliases || [])].map(normalizePlaceText);
-    return names.some((name) => name && normalized.includes(name));
-  });
+  for (const rawName of barrioNames(barrio)) {
+    const name = normalizePlaceText(rawName);
+    if (!name) continue;
+    const pattern = escapeRegex(name).replace(/\s+/g, '\\s+');
+    const re = new RegExp(`(^|[^a-z0-9])${pattern}([^a-z0-9]|$)`, 'ig');
+    let match;
+    while ((match = re.exec(normalized))) {
+      const start = match.index + (match[1] ? match[1].length : 0);
+      const before = normalized.slice(Math.max(0, start - 48), start);
+      if (/(?:\ben\s+|\bbarrio\s+|\bzona(?:\s+de)?\s+|\bdesde\s+|\bpor\s+|\bcerca\s+de\s+|\balrededores\s+de\s+|\bvecinos\s+de\s+)$/.test(before)) return true;
+    }
+  }
+  return false;
+}
+
+export function resolveBarriosFromResult({ title = '', snippet = '' } = {}) {
+  const titleMatches = detectBarrios(title);
+  if (titleMatches.length > 0 && titleMatches.length <= 3) {
+    return { barrios: titleMatches, precision: 'high', reason: 'title_match' };
+  }
+  if (titleMatches.length > 3) {
+    return { barrios: [], precision: 'low', reason: 'title_geo_ambiguous' };
+  }
+
+  const snippetMatches = detectBarrios(snippet);
+  const contextual = snippetMatches.filter((barrio) => hasLocativeCue(snippet, barrio));
+  if (contextual.length > 0 && contextual.length <= 2) {
+    return { barrios: contextual, precision: 'medium', reason: 'snippet_locative' };
+  }
+  if (contextual.length > 2) {
+    return { barrios: [], precision: 'low', reason: 'snippet_geo_ambiguous' };
+  }
+
+  const normalizedSnippet = normalizePlaceText(snippet);
+  const cabaMarker = /\bcaba\b|\bcapital federal\b|\bciudad de buenos aires\b/.test(normalizedSnippet);
+  if (cabaMarker && snippetMatches.length === 1) {
+    return { barrios: snippetMatches, precision: 'medium', reason: 'single_barrio_with_caba_marker' };
+  }
+
+  return { barrios: [], precision: 'low', reason: snippetMatches.length ? 'unanchored_barrio_mentions' : 'no_barrio' };
 }
