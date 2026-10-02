@@ -1,9 +1,11 @@
 import baseWorker from './worker-v09.js';
 import { detectBarrios, findBarrioExact, resolveBarriosFromResult } from './data/caba-barrios.js';
+import { classifyElectricEvidence } from './data/electricidad-evidence.js';
 import { matchElectricSignals } from './data/electricidad.js';
 import { fetchRedditElectricidad } from './sources/reddit-electricidad.js';
 import { fetchSerperRedditElectricidad } from './sources/serper-reddit.js';
 import { fetchSerperElectricidad } from './sources/serper-electricidad.js';
+import { fetchSerperElectricidadTerritorial } from './sources/serper-electricidad-territorial.js';
 import { fetchEnreElectricidad } from './sources/enre-electricidad.js';
 
 function json(data, status = 200) {
@@ -45,9 +47,9 @@ function statusFromScore(score) {
 }
 
 function sourceIdentity(mention) {
-  if (mention.sourceType === 'citizen') {
+  if (mention.sourceType === 'citizen' || mention.sourceType === 'territorial_web') {
     if (mention.author) return `${mention.provider || 'citizen'}:${mention.author}`;
-    if (mention.url) return `citizen:${normalizeText(String(mention.url).replace(/[?#].*$/, ''))}`;
+    if (mention.url) return `${mention.sourceType}:${normalizeText(String(mention.url).replace(/[?#].*$/, ''))}`;
   }
   return mention.source || mention.provider || safeDomain(mention.url) || mention.url || mention.title;
 }
@@ -120,6 +122,61 @@ function extractMentions(articles = [], sourceType = 'web') {
   return mentions;
 }
 
+function extractTerritorialMentions(articles = []) {
+  const mentions = [];
+  const evaluations = [];
+  for (const article of articles) {
+    const classification = classifyElectricEvidence({
+      title: article.title || '',
+      snippet: article.snippet || '',
+      targetBarrio: article.targetBarrio || '',
+      source: article.source || '',
+      provider: article.provider || ''
+    });
+    evaluations.push({
+      targetBarrio: article.targetBarrio || null,
+      query: article.query || null,
+      title: article.title,
+      snippet: article.snippet || '',
+      url: article.url,
+      source: article.source || safeDomain(article.url),
+      evidenceQuality: classification.evidenceQuality,
+      assignmentScope: classification.assignmentScope,
+      acceptedForBarrio: classification.acceptedForBarrio,
+      reasonCodes: classification.reasonCodes || [],
+      mentionedBarrios: classification.mentionedBarrios || []
+    });
+    if (!classification.acceptedForBarrio) continue;
+
+    const barrio = findBarrioExact(article.targetBarrio || classification.targetBarrio || '');
+    if (!barrio) continue;
+    const text = `${article.title || ''} ${article.snippet || ''}`;
+    const meaningful = matchElectricSignals(text).filter((signal) => !['entity', 'context'].includes(signal.signalType));
+    if (!meaningful.length) continue;
+    mentions.push({
+      barrio: barrio.name,
+      comuna: barrio.comuna,
+      title: article.title,
+      snippet: article.snippet || '',
+      url: article.url,
+      source: article.source || safeDomain(article.url),
+      provider: article.provider || 'Google Web Territorial (Serper)',
+      date: article.date,
+      sourceType: 'territorial_web',
+      signalIds: meaningful.map((signal) => signal.id),
+      signalPhrases: meaningful.map((signal) => signal.phrase),
+      maxWeight: Math.max(...meaningful.map((signal) => signal.baseWeight)),
+      geoPrecision: classification.geoPrecision || null,
+      geoReason: classification.geoReason || null,
+      evidenceQuality: classification.evidenceQuality,
+      assignmentScope: classification.assignmentScope,
+      reasonCodes: classification.reasonCodes || [],
+      searchQuery: article.query || null
+    });
+  }
+  return { mentions, evaluations };
+}
+
 function enreMentions(records = []) {
   const mentions = [];
   for (const record of records) {
@@ -143,7 +200,9 @@ function enreMentions(records = []) {
         signalPhrases: [`ENRE: ${(record.enreType || 'interrupción').replace(/_/g, ' ')}`],
         maxWeight: record.maxWeight || 4,
         geoPrecision: 'high',
-        geoReason: 'structured_locality'
+        geoReason: 'structured_locality',
+        evidenceQuality: 'official',
+        assignmentScope: 'barrio'
       });
     }
   }
@@ -214,6 +273,8 @@ async function fetchCitizenElectricity(span, env) {
 }
 
 async function handleElectricidadV10(request, env) {
+  const url = new URL(request.url);
+  const territorialEnabled = url.searchParams.get('territorial') === '1';
   const baseResponse = await baseWorker.fetch(request, env);
   let base;
   try { base = await baseResponse.json(); }
@@ -221,11 +282,16 @@ async function handleElectricidadV10(request, env) {
   if (!base?.ok) return json(base, baseResponse.status || 500);
 
   const span = base.span || '1d';
-  const [redditResult, webResult, enreResult] = await Promise.allSettled([
+  const sourceTasks = [
     fetchCitizenElectricity(span, env),
     fetchSerperElectricidad(span, env?.SERPER_API_KEY || ''),
     fetchEnreElectricidad()
-  ]);
+  ];
+  if (territorialEnabled) {
+    sourceTasks.push(fetchSerperElectricidadTerritorial(span, env?.SERPER_API_KEY || '', { batchSize: 12 }));
+  }
+  const settled = await Promise.allSettled(sourceTasks);
+  const [redditResult, webResult, enreResult, territorialResult] = settled;
 
   const reddit = redditResult.status === 'fulfilled'
     ? redditResult.value
@@ -236,13 +302,18 @@ async function handleElectricidadV10(request, env) {
   const enre = enreResult.status === 'fulfilled'
     ? enreResult.value
     : { records: [], diagnostics: { error: String(enreResult.reason?.message || enreResult.reason) }, totals: {} };
+  const territorial = territorialEnabled && territorialResult?.status === 'fulfilled'
+    ? territorialResult.value
+    : { articles: [], diagnostics: territorialEnabled ? { error: String(territorialResult?.reason?.message || territorialResult?.reason || 'sin resultado') } : { disabled: true }, plan: { barrios: [], queryCount: 0 }, disabled: !territorialEnabled };
 
   const inheritedRawCount = (base.radar || []).reduce((sum, row) => sum + (row.evidence || []).length, 0);
   const inherited = existingMentionsFromRadar(base.radar || []);
   const fromReddit = extractMentions(reddit.articles || [], 'citizen');
   const fromWeb = extractMentions(web.articles || [], 'web');
+  const territorialExtracted = extractTerritorialMentions(territorial.articles || []);
+  const fromTerritorial = territorialExtracted.mentions;
   const fromEnre = enreMentions(enre.records || []);
-  const mentions = dedupeMentions([...inherited, ...fromReddit, ...fromWeb, ...fromEnre]);
+  const mentions = dedupeMentions([...inherited, ...fromReddit, ...fromWeb, ...fromTerritorial, ...fromEnre]);
 
   const radar = (base.radar || []).map((row) => {
     const local = mentions.filter((mention) => mention.barrio === row.barrio);
@@ -263,11 +334,19 @@ async function handleElectricidadV10(request, env) {
     };
   }).sort((a, b) => b.score - a.score || b.mentions - a.mentions);
 
+  const territorialCitywide = territorialExtracted.evaluations.filter((item) => item.assignmentScope === 'citywide');
+  const territorialRejected = territorialExtracted.evaluations.filter((item) => !item.acceptedForBarrio && item.assignmentScope !== 'citywide');
+  const territorialQuality = territorialExtracted.evaluations.reduce((acc, item) => {
+    const key = item.evidenceQuality || 'unknown';
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
   return json({
     ...base,
-    version: '0.12-electricidad-geo-filter',
+    version: '0.13-electricidad-territorial-evidence',
     provisional: true,
-    methodology: 'El score exploratorio combina web/noticias, Google Web, relatos ciudadanos encontrados en Reddit y confirmación oficial del ENRE. Antes de puntuar, las menciones web deben tener anclaje territorial explícito en título o contexto locativo del snippet; listados ambiguos de barrios se descartan. Intensidad y confianza siguen separadas. Todavía no usa baseline histórico.',
+    methodology: 'El score exploratorio combina web/noticias, Google Web, relatos ciudadanos encontrados en Reddit y confirmación oficial del ENRE. Con ?territorial=1 se agrega un barrido rotativo de 12 barrios con búsquedas específicas y un clasificador de evidencia que separa reportes barriales, eventos citywide, geografía conflictiva y ruido. Sólo la evidencia aceptada con alcance barrio entra al score. Intensidad y confianza siguen separadas. Todavía no usa baseline histórico.',
     coverage: {
       ...(base.coverage || {}),
       inheritedRawEvidence: inheritedRawCount,
@@ -278,6 +357,14 @@ async function handleElectricidadV10(request, env) {
       redditMode: reddit.mode || null,
       serperWebRaw: (web.articles || []).length,
       serperWebUsableMentions: fromWeb.length,
+      territorialEnabled,
+      territorialQueries: territorial.plan?.queryCount || 0,
+      territorialBarrios: territorial.plan?.barrios || [],
+      territorialRaw: (territorial.articles || []).length,
+      territorialUsableBarrioMentions: fromTerritorial.length,
+      territorialCitywideSignals: territorialCitywide.length,
+      territorialRejected: territorialRejected.length,
+      territorialEvidenceQuality: territorialQuality,
       enreRawRecords: (enre.records || []).length,
       enreUsableMentions: fromEnre.length,
       totalUsableMentions: mentions.length
@@ -285,6 +372,13 @@ async function handleElectricidadV10(request, env) {
     directSources: {
       reddit: { mode: reddit.mode || null, diagnostics: reddit.diagnostics || {}, query: reddit.query || null },
       googleWeb: { diagnostics: web.diagnostics || {}, queries: web.queries || [] },
+      territorialWeb: {
+        enabled: territorialEnabled,
+        diagnostics: territorial.diagnostics || {},
+        plan: territorial.plan || {},
+        citywide: territorialCitywide.slice(0, 12),
+        rejectedSample: territorialRejected.slice(0, 12)
+      },
       enre: { diagnostics: enre.diagnostics || {}, totals: enre.totals || {} }
     },
     radar,
