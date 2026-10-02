@@ -49,6 +49,13 @@ export const CABA_BARRIOS = [
   { name: 'Villa Urquiza', comuna: 12, aliases: ['Urquiza'] }
 ];
 
+const NON_CABA_TITLE_MARKERS = [
+  'san juan', 'mendoza', 'cordoba', 'rosario', 'santa fe', 'la plata', 'mar del plata',
+  'tucuman', 'salta', 'jujuy', 'neuquen', 'posadas', 'resistencia', 'parana', 'bahia blanca',
+  'san luis', 'catamarca', 'la rioja', 'santiago del estero', 'corrientes', 'formosa',
+  'entre rios', 'rio negro', 'chubut', 'santa cruz', 'tierra del fuego'
+];
+
 export function normalizePlaceText(value = '') {
   return String(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 }
@@ -69,6 +76,17 @@ function barrioNames(barrio) {
   return [barrio.name, ...(barrio.aliases || [])];
 }
 
+function hasCabaMarker(text = '') {
+  const normalized = normalizePlaceText(text);
+  return /\bcaba\b|\bcapital federal\b|\bciudad de buenos aires\b|\bporten[oa]s?\b/.test(normalized);
+}
+
+function hasConflictingNonCabaTitle(title = '', barrio) {
+  if (hasCabaMarker(title)) return false;
+  if (barrioNames(barrio).some((name) => containsWholePhrase(title, name))) return false;
+  return NON_CABA_TITLE_MARKERS.some((marker) => containsWholePhrase(title, marker));
+}
+
 export function findBarrioExact(value = '') {
   const normalized = normalizePlaceText(value);
   if (!normalized) return null;
@@ -87,7 +105,12 @@ export function confirmTargetBarrioInResult({ targetBarrio = '', title = '', sni
   if (titleMatch) return { barrio, precision: 'high', reason: 'target_barrio_in_title' };
 
   const snippetMatch = barrioNames(barrio).some((name) => containsWholePhrase(snippet, name));
-  if (snippetMatch) return { barrio, precision: 'medium', reason: 'target_barrio_in_snippet' };
+  if (snippetMatch) {
+    if (hasConflictingNonCabaTitle(title, barrio)) {
+      return { barrio: null, precision: 'low', reason: 'conflicting_non_caba_title' };
+    }
+    return { barrio, precision: 'medium', reason: 'target_barrio_in_snippet' };
+  }
 
   return { barrio: null, precision: 'low', reason: 'target_barrio_not_in_result' };
 }
@@ -127,9 +150,7 @@ export function resolveBarriosFromResult({ title = '', snippet = '' } = {}) {
     return { barrios: [], precision: 'low', reason: 'snippet_geo_ambiguous' };
   }
 
-  const normalizedSnippet = normalizePlaceText(snippet);
-  const cabaMarker = /\bcaba\b|\bcapital federal\b|\bciudad de buenos aires\b/.test(normalizedSnippet);
-  if (cabaMarker && snippetMatches.length === 1) {
+  if (hasCabaMarker(snippet) && snippetMatches.length === 1) {
     return { barrios: snippetMatches, precision: 'medium', reason: 'single_barrio_with_caba_marker' };
   }
 
