@@ -1,0 +1,42 @@
+[
+  {
+    "id": "elec_positive_001",
+    "text": "Hace seis horas que estamos sin luz en Flores y ya hicimos varios reclamos a Edesur.",
+    "expected": { "family": "electricidad", "barrios": ["Flores"], "min_weight": 4, "useful": true }
+  },
+  {
+    "id": "elec_positive_002",
+    "text": "Otra vez baja tensión en Caballito. Somos varios en la cuadra y ya se quemó una heladera.",
+    "expected": { "family": "electricidad", "barrios": ["Caballito"], "min_weight": 4, "useful": true }
+  },
+  {
+    "id": "elec_positive_003",
+    "text": "Explotó un transformador en Villa Lugano y toda la manzana quedó sin luz.",
+    "expected": { "family": "electricidad", "barrios": ["Villa Lugano"], "min_weight": 4, "useful": true }
+  },
+  {
+    "id": "elec_positive_004",
+    "text": "Microcortes todo el tiempo en Almagro desde anoche.",
+    "expected": { "family": "electricidad", "barrios": ["Almagro"], "min_weight": 3, "useful": true }
+  },
+  {
+    "id": "elec_positive_005",
+    "text": "Todo el edificio sin luz en Boedo. No funciona el ascensor y Edesur no responde.",
+    "expected": { "family": "electricidad", "barrios": ["Boedo"], "min_weight": 4, "useful": true }
+  },
+  {
+    "id": "elec_negative_001",
+    "text": "Oferta de lámparas LED para iluminar tu casa en Flores.",
+    "expected": { "family": "electricidad", "barrios": ["Flores"], "useful": false }
+  },
+  {
+    "id": "elec_negative_002",
+    "text": "Electricista en Caballito: instalación eléctrica, tableros y reparación de luminarias.",
+    "expected": { "family": "electricidad", "barrios": ["Caballito"], "useful": false }
+  },
+  {
+    "id": "elec_negative_003",
+    "text": "Cómo ahorrar en la factura de luz y elegir iluminación decorativa en Belgrano.",
+    "expected": { "family": "electricidad", "barrios": ["Belgrano"], "useful": false }
+  }
+]

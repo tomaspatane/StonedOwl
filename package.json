@@ -1,0 +1,14 @@
+{
+  "name": "stonedowl",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npm run test:electricidad && npm run test:sources && npm run test:geo && npm run test:thermometer && npm run test:frontend",
+    "test:electricidad": "node tests/electricidad-parser.mjs",
+    "test:sources": "node tests/source-parsers.mjs",
+    "test:geo": "node tests/geo-context.mjs",
+    "test:thermometer": "node tests/electricidad-thermometer.mjs",
+    "test:frontend": "node --check public/app.js",
+    "smoke:electricidad": "node scripts/live-electricidad-smoke.mjs"
+  }
+}
