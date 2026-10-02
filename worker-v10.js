@@ -1,5 +1,5 @@
 import baseWorker from './worker-v09.js';
-import { detectBarrios, findBarrioExact } from './data/caba-barrios.js';
+import { detectBarrios, findBarrioExact, resolveBarriosFromResult } from './data/caba-barrios.js';
 import { matchElectricSignals } from './data/electricidad.js';
 import { fetchRedditElectricidad } from './sources/reddit-electricidad.js';
 import { fetchSerperRedditElectricidad } from './sources/serper-reddit.js';
@@ -91,7 +91,8 @@ function extractMentions(articles = [], sourceType = 'web') {
   const mentions = [];
   for (const article of articles) {
     const text = `${article.title || ''} ${article.snippet || ''}`;
-    const barrios = detectBarrios(text);
+    const geo = resolveBarriosFromResult({ title: article.title || '', snippet: article.snippet || '' });
+    const barrios = geo.barrios;
     const signals = matchElectricSignals(text);
     const meaningful = signals.filter((signal) => !['entity', 'context'].includes(signal.signalType));
     if (!barrios.length || !meaningful.length) continue;
@@ -110,7 +111,9 @@ function extractMentions(articles = [], sourceType = 'web') {
         sourceType,
         signalIds: meaningful.map((signal) => signal.id),
         signalPhrases: meaningful.map((signal) => signal.phrase),
-        maxWeight
+        maxWeight,
+        geoPrecision: geo.precision,
+        geoReason: geo.reason
       });
     }
   }
@@ -138,7 +141,9 @@ function enreMentions(records = []) {
         affectedUsers: record.affectedUsers || 0,
         signalIds: [`enre_${record.enreType || 'interrupcion'}`],
         signalPhrases: [`ENRE: ${(record.enreType || 'interrupción').replace(/_/g, ' ')}`],
-        maxWeight: record.maxWeight || 4
+        maxWeight: record.maxWeight || 4,
+        geoPrecision: 'high',
+        geoReason: 'structured_locality'
       });
     }
   }
@@ -162,12 +167,22 @@ function dedupeMentions(mentions = []) {
 }
 
 function existingMentionsFromRadar(radar = []) {
-  return radar.flatMap((row) => (row.evidence || []).map((evidence) => ({
-    ...evidence,
-    barrio: evidence.barrio || row.barrio,
-    comuna: evidence.comuna || row.comuna,
-    sourceType: evidence.sourceType || 'media'
-  })));
+  const mentions = [];
+  for (const row of radar) {
+    for (const evidence of (row.evidence || [])) {
+      const geo = resolveBarriosFromResult({ title: evidence.title || '', snippet: evidence.snippet || '' });
+      if (!geo.barrios.some((barrio) => barrio.name === row.barrio)) continue;
+      mentions.push({
+        ...evidence,
+        barrio: row.barrio,
+        comuna: row.comuna,
+        sourceType: evidence.sourceType || 'media',
+        geoPrecision: geo.precision,
+        geoReason: geo.reason
+      });
+    }
+  }
+  return mentions;
 }
 
 function summarizeSignals(local = []) {
@@ -222,6 +237,7 @@ async function handleElectricidadV10(request, env) {
     ? enreResult.value
     : { records: [], diagnostics: { error: String(enreResult.reason?.message || enreResult.reason) }, totals: {} };
 
+  const inheritedRawCount = (base.radar || []).reduce((sum, row) => sum + (row.evidence || []).length, 0);
   const inherited = existingMentionsFromRadar(base.radar || []);
   const fromReddit = extractMentions(reddit.articles || [], 'citizen');
   const fromWeb = extractMentions(web.articles || [], 'web');
@@ -249,11 +265,14 @@ async function handleElectricidadV10(request, env) {
 
   return json({
     ...base,
-    version: '0.11-electricidad-serper',
+    version: '0.12-electricidad-geo-filter',
     provisional: true,
-    methodology: 'El score exploratorio combina web/noticias, Google Web con consultas simples compatibles con Serper, relatos ciudadanos encontrados en Reddit y confirmación oficial del ENRE. Intensidad y confianza siguen separadas. Todavía no usa baseline histórico.',
+    methodology: 'El score exploratorio combina web/noticias, Google Web, relatos ciudadanos encontrados en Reddit y confirmación oficial del ENRE. Antes de puntuar, las menciones web deben tener anclaje territorial explícito en título o contexto locativo del snippet; listados ambiguos de barrios se descartan. Intensidad y confianza siguen separadas. Todavía no usa baseline histórico.',
     coverage: {
       ...(base.coverage || {}),
+      inheritedRawEvidence: inheritedRawCount,
+      inheritedGeoAccepted: inherited.length,
+      inheritedGeoRejected: Math.max(0, inheritedRawCount - inherited.length),
       redditRaw: (reddit.articles || []).length,
       redditUsableMentions: fromReddit.length,
       redditMode: reddit.mode || null,
