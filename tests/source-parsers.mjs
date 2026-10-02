@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { parseRedditAtom } from '../sources/reddit-electricidad.js';
 import { parseEnrePayload, flattenEnreCuts } from '../sources/enre-electricidad.js';
 import { buildTerritorialPlan, fetchSerperElectricidadTerritorial } from '../sources/serper-electricidad-territorial.js';
+import { confirmTargetBarrioInResult } from '../data/caba-barrios.js';
 
 const redditFixture = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
@@ -76,5 +77,21 @@ assert.equal(territorial.diagnostics.length, 2);
 assert.equal(territorial.articles.length, 1);
 assert.equal(territorial.articles[0].targetBarrio, 'Flores');
 assert.equal(territorial.articles[0].sourceType, 'territorial_web');
+
+const validTarget = confirmTargetBarrioInResult({
+  targetBarrio: 'Flores',
+  title: 'Otra vez sin luz, para variar',
+  snippet: 'Vecinos de Flores dicen que siguen sin suministro desde anoche.'
+});
+assert.equal(validTarget.barrio?.name, 'Flores');
+assert.equal(validTarget.reason, 'target_barrio_in_snippet');
+
+const conflictingTarget = confirmTargetBarrioInResult({
+  targetBarrio: 'Caballito',
+  title: 'Naturgy explicó qué provocó el apagón masivo en San Juan',
+  snippet: 'El resultado también menciona Caballito dentro del texto indexado.'
+});
+assert.equal(conflictingTarget.barrio, null);
+assert.equal(conflictingTarget.reason, 'conflicting_non_caba_title');
 
 console.log('Source parser fixtures: OK');
