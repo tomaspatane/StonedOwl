@@ -3,66 +3,85 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>StonedOwl v0.8</title>
+<meta name="theme-color" content="#0b1117">
+<title>Stoned Owl · Radar CABA</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="app">
-  <header class="top">
-    <div class="brand"><div class="logo">🦉</div><div><h1>StonedOwl</h1><div class="sub">Social listening con fuentes abiertas</div></div></div>
-    <div class="ver">WEB · V0.8</div>
+  <header class="topbar">
+    <div class="brand">
+      <div class="owl">◉</div>
+      <div>
+        <h1>Stoned Owl</h1>
+        <p>Radar de problemas urbanos en CABA</p>
+      </div>
+    </div>
+    <div class="system-strip">
+      <div class="system-item"><span class="status-dot live"></span><div><small>Actualizado</small><strong id="updatedAt">—</strong></div></div>
+      <div class="system-item"><div><small>Barrios con alertas</small><strong id="alertCount">—</strong></div></div>
+      <div class="system-item"><div><small>Fuentes activas</small><strong id="sourceCount">—</strong></div></div>
+      <div class="system-item"><span class="status-dot live" id="systemDot"></span><div><small>Sistema</small><strong id="systemState">Cargando</strong></div></div>
+    </div>
   </header>
 
-  <section class="panel search">
-    <h2>¿Qué querés escuchar?</h2>
-    <p>Buscá un tema puntual o corré el Radar CABA para detectar problemas urbanos por categoría.</p>
-    <div class="row">
-      <input id="q" placeholder="Ej.: subte, basura Caballito, baches" autofocus>
-      <select id="span">
-        <option value="1d">Últimas 24 h</option>
-        <option value="3d">Últimos 3 días</option>
-        <option value="1w" selected>Últimos 7 días</option>
-        <option value="1m">Último mes</option>
-      </select>
-      <select id="scope">
-        <option value="argentina" selected>Medios argentinos</option>
-        <option value="world">Todo el mundo</option>
-      </select>
-      <button id="go">Escuchar</button>
-      <button id="radar" class="secondary">Radar CABA</button>
-    </div>
-    <div class="status"><span class="dot" id="dot"></span><span id="status">Escribí un tema o corré el Radar CABA.</span></div>
-  </section>
+  <main class="dashboard">
+    <section class="map-panel panel">
+      <div class="panel-head">
+        <div>
+          <span class="eyebrow">Termómetro territorial</span>
+          <h2>Ciudad de Buenos Aires</h2>
+        </div>
+        <button id="refreshBtn" class="ghost-btn" type="button">Actualizar</button>
+      </div>
 
-  <section class="metrics">
-    <div class="metric"><span>Resultados</span><b id="m1">—</b><small>noticias</small></div>
-    <div class="metric"><span>Medios</span><b id="m2">—</b><small>fuentes distintas</small></div>
-    <div class="metric"><span>Período</span><b id="m3">—</b><small>seleccionado</small></div>
-    <div class="metric"><span>Fuentes activas</span><b id="m4">—</b><small id="m4sub">backend</small></div>
-  </section>
+      <div class="map-stage" id="mapStage" aria-label="Mapa simplificado de barrios de CABA">
+        <div class="map-shape"></div>
+        <div id="barriosLayer" class="barrios-layer"></div>
+        <div class="map-message" id="mapMessage">Cargando señales…</div>
+      </div>
 
-  <section class="card radar-card">
-    <div class="head"><h3>Radar de problemas de CABA</h3><span id="radarLabel">sin correr</span></div>
-    <div class="radar-grid" id="radarResults">
-      <div class="empty"><strong>4 categorías iniciales</strong>Transporte · Limpieza · Infraestructura · Seguridad</div>
-    </div>
-    <div class="radar-note" id="radarNote">La señal actual mide volumen de cobertura y diversidad de fuentes. Todavía no implica crecimiento histórico.</div>
-  </section>
+      <div class="legend">
+        <span><i class="legend-dot verde"></i>Normal</span>
+        <span><i class="legend-dot amarillo"></i>Atención</span>
+        <span><i class="legend-dot naranja"></i>Problema</span>
+        <span><i class="legend-dot rojo"></i>Crítico</span>
+      </div>
+    </section>
 
-  <main class="layout">
-    <article class="card">
-      <div class="head"><h3>Noticias encontradas</h3><span id="label">Sin búsqueda</span></div>
-      <div class="list" id="articles"><div class="empty"><strong>Probemos con “subte”</strong>Los resultados van a aparecer acá.</div></div>
-    </article>
-    <aside class="right">
-      <article class="card"><div class="head"><h3>Medios con más resultados</h3><span>muestra actual</span></div><div class="body" id="media"><div class="empty"><strong>Fuentes</strong>Acá vas a ver qué medios concentran la cobertura.</div></div></article>
-      <article class="card"><div class="head"><h3>Diagnóstico</h3><span>fuentes</span></div><div class="body"><div class="callout" id="diag">Bing News, GDELT y Google News configurados.</div></div></article>
-      <article class="card"><div class="head"><h3>Google Trends</h3></div><div class="body"><a class="btn" id="trends" href="https://trends.google.com/trends/" target="_blank" rel="noopener">Abrir Google Trends ↗</a></div></article>
+    <aside class="alerts-panel panel">
+      <div class="panel-head alerts-head">
+        <div>
+          <span class="eyebrow">Ahora</span>
+          <h2>Problemas que están creciendo</h2>
+        </div>
+      </div>
+      <div id="alerts" class="alerts-list">
+        <div class="empty-state">Esperando el primer barrido.</div>
+      </div>
+      <div class="alerts-foot">
+        <span id="coverageNote">Piloto activo: Electricidad</span>
+      </div>
     </aside>
   </main>
 
-  <footer>StonedOwl v0.8 · Radar CABA: taxonomía urbana + fuentes abiertas.</footer>
+  <section class="filters panel">
+    <label><span>Problema</span><select id="problemFilter" disabled><option>Electricidad</option></select></label>
+    <label><span>Comuna</span><select id="comunaFilter"><option value="all">Todas</option></select></label>
+    <label><span>Estado</span><select id="statusFilter"><option value="all">Todos</option><option value="amarillo">Atención</option><option value="naranja">Problema</option><option value="rojo">Crítico</option><option value="verde">Normal</option></select></label>
+    <label><span>Ventana</span><select id="spanFilter"><option value="1d" selected>24 horas</option><option value="3d">3 días</option><option value="1w">7 días</option></select></label>
+    <div class="filter-note">Los colores muestran señal detectada, no certeza absoluta.</div>
+  </section>
+
+  <footer>Stoned Owl · piloto Electricidad · la evidencia social, oficial y mediática se puntúa por separado.</footer>
 </div>
+
+<div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <button class="drawer-close" id="drawerClose" type="button" aria-label="Cerrar">×</button>
+  <div id="drawerContent"></div>
+</aside>
+
 <script src="app.js"></script>
 </body>
 </html>
