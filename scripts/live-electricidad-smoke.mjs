@@ -4,24 +4,32 @@ import { fetchSerperRedditElectricidad } from '../sources/serper-reddit.js';
 import { fetchSerperElectricidad } from '../sources/serper-electricidad.js';
 import { fetchSerperElectricidadTerritorial } from '../sources/serper-electricidad-territorial.js';
 import { fetchEnreElectricidad } from '../sources/enre-electricidad.js';
-import { detectBarrios, findBarrioExact, resolveBarriosFromResult } from '../data/caba-barrios.js';
+import { confirmTargetBarrioInResult, detectBarrios, findBarrioExact, resolveBarriosFromResult } from '../data/caba-barrios.js';
 import { matchElectricSignals } from '../data/electricidad.js';
 
 const TERRITORIAL_PILOT = ['Flores', 'Caballito', 'Almagro', 'Villa Lugano', 'Villa Riachuelo', 'Constitución'];
 
 function summarizeSignal(article, sourceType = 'web') {
   const text = `${article.title || ''} ${article.snippet || ''}`.trim();
-  const geo = resolveBarriosFromResult({ title: article.title || '', snippet: article.snippet || '' });
-  let resolved = geo.barrios;
-  let geoPrecision = geo.precision;
-  let geoReason = geo.reason;
+  let resolved = [];
+  let geoPrecision = 'low';
+  let geoReason = 'no_barrio';
 
   if (article.targetBarrio) {
-    const targeted = resolved.find((barrio) => barrio.name === article.targetBarrio);
-    if (!targeted) return null;
-    resolved = [targeted];
-    geoPrecision = 'high';
-    geoReason = 'territorial_query_confirmed_in_result';
+    const targeted = confirmTargetBarrioInResult({
+      targetBarrio: article.targetBarrio,
+      title: article.title || '',
+      snippet: article.snippet || ''
+    });
+    if (!targeted.barrio) return null;
+    resolved = [targeted.barrio];
+    geoPrecision = targeted.precision;
+    geoReason = targeted.reason;
+  } else {
+    const geo = resolveBarriosFromResult({ title: article.title || '', snippet: article.snippet || '' });
+    resolved = geo.barrios;
+    geoPrecision = geo.precision;
+    geoReason = geo.reason;
   }
 
   const barrios = resolved.map((b) => ({ name: b.name, comuna: b.comuna }));
@@ -114,6 +122,17 @@ const webSignals = web.articles.map((article) => summarizeSignal(article, 'web')
 const territorialSignals = territorial.articles.map((article) => summarizeSignal(article, 'territorial_web')).filter(Boolean);
 const officialSignals = enre.records.map(summarizeOfficial).filter(Boolean);
 
+const territorialRejectedSample = territorial.articles
+  .filter((article) => !summarizeSignal(article, 'territorial_web'))
+  .slice(0, 12)
+  .map((article) => ({
+    targetBarrio: article.targetBarrio,
+    query: article.query,
+    title: article.title,
+    snippet: article.snippet,
+    source: article.source
+  }));
+
 const byBarrio = new Map();
 for (const item of [...citizenSignals, ...webSignals, ...territorialSignals, ...officialSignals]) {
   for (const barrio of item.barrios) {
@@ -150,7 +169,7 @@ const radar = [...byBarrio.values()]
 
 const report = {
   ok: redditResult.status === 'fulfilled' || webResult.status === 'fulfilled' || territorialResult.status === 'fulfilled' || enreResult.status === 'fulfilled',
-  version: 'live-smoke-v5-territorial-search',
+  version: 'live-smoke-v6-target-confirmation',
   startedAt,
   finishedAt: new Date().toISOString(),
   sourceHealth: {
@@ -176,6 +195,7 @@ const report = {
   citizenSignals: citizenSignals.slice(0, 30),
   webSignals: webSignals.slice(0, 50),
   territorialSignals: territorialSignals.slice(0, 50),
+  territorialRejectedSample,
   officialSignals: officialSignals.slice(0, 50)
 };
 
