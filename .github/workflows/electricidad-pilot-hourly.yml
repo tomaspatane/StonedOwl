@@ -1,0 +1,44 @@
+name: StonedOwl Electricity Pilot Hourly
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stonedowl-electricidad-hourly
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout electricity pilot branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/electricidad-mvp-v01
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run electricity tests
+        run: npm test
+
+      - name: Capture live electricity snapshot
+        env:
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+        run: npm run smoke:electricidad
+
+      - name: Upload snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stonedowl-electricidad-${{ github.run_id }}
+          path: tmp/live-electricidad-report.json
+          if-no-files-found: error
+          retention-days: 14
