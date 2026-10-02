@@ -3,12 +3,13 @@ import { fetchRedditElectricidad } from '../sources/reddit-electricidad.js';
 import { fetchSerperRedditElectricidad } from '../sources/serper-reddit.js';
 import { fetchSerperElectricidad } from '../sources/serper-electricidad.js';
 import { fetchEnreElectricidad } from '../sources/enre-electricidad.js';
-import { detectBarrios, findBarrioExact } from '../data/caba-barrios.js';
+import { detectBarrios, findBarrioExact, resolveBarriosFromResult } from '../data/caba-barrios.js';
 import { matchElectricSignals } from '../data/electricidad.js';
 
 function summarizeSignal(article, sourceType = 'web') {
   const text = `${article.title || ''} ${article.snippet || ''}`.trim();
-  const barrios = detectBarrios(text).map((b) => ({ name: b.name, comuna: b.comuna }));
+  const geo = resolveBarriosFromResult({ title: article.title || '', snippet: article.snippet || '' });
+  const barrios = geo.barrios.map((b) => ({ name: b.name, comuna: b.comuna }));
   const signals = matchElectricSignals(text).filter((s) => !['entity', 'context'].includes(s.signalType));
   if (!barrios.length || !signals.length) return null;
   return {
@@ -19,6 +20,8 @@ function summarizeSignal(article, sourceType = 'web') {
     title: article.title,
     url: article.url,
     barrios,
+    geoPrecision: geo.precision,
+    geoReason: geo.reason,
     signals: signals.map((s) => ({ phrase: s.phrase, subfamily: s.subfamily, weight: s.baseWeight })),
     maxWeight: Math.max(...signals.map((s) => s.baseWeight))
   };
@@ -37,6 +40,8 @@ function summarizeOfficial(record) {
     title: record.title,
     url: record.url,
     barrios,
+    geoPrecision: 'high',
+    geoReason: 'structured_locality',
     official: true,
     company: record.company,
     enreType: record.enreType,
@@ -115,7 +120,7 @@ const radar = [...byBarrio.values()]
 
 const report = {
   ok: redditResult.status === 'fulfilled' || webResult.status === 'fulfilled' || enreResult.status === 'fulfilled',
-  version: 'live-smoke-v3',
+  version: 'live-smoke-v4-geo-filter',
   startedAt,
   finishedAt: new Date().toISOString(),
   sourceHealth: {
