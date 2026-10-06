@@ -89,7 +89,7 @@ function scoreBarrio(mentions) {
   };
 }
 
-function extractMentions(articles = [], sourceType = 'web') {
+function extractMentions(articles = [], sourceType = 'web', span = '1d') {
   const mentions = [];
   for (const article of articles) {
     const text = `${article.title || ''} ${article.snippet || ''}`;
@@ -100,7 +100,12 @@ function extractMentions(articles = [], sourceType = 'web') {
     if (!barrios.length || !meaningful.length) continue;
     const maxWeight = Math.max(...meaningful.map((signal) => signal.baseWeight));
     for (const barrio of barrios) {
+      const classification = classifyElectricEvidence({ ...article, targetBarrio: barrio.name, span });
+      if (!classification.acceptedForBarrio) continue;
       mentions.push({
+        evidenceQuality: classification.evidenceQuality,
+        assignmentScope: classification.assignmentScope,
+        reasonCodes: classification.reasonCodes,
         barrio: barrio.name,
         comuna: barrio.comuna,
         title: article.title,
@@ -122,7 +127,7 @@ function extractMentions(articles = [], sourceType = 'web') {
   return mentions;
 }
 
-function extractTerritorialMentions(articles = []) {
+function extractTerritorialMentions(articles = [], span = '1d') {
   const mentions = [];
   const evaluations = [];
   for (const article of articles) {
@@ -131,11 +136,14 @@ function extractTerritorialMentions(articles = []) {
       snippet: article.snippet || '',
       targetBarrio: article.targetBarrio || '',
       source: article.source || '',
-      provider: article.provider || ''
+      provider: article.provider || '',
+      date: article.date || '',
+      span
     });
     evaluations.push({
       targetBarrio: article.targetBarrio || null,
       query: article.query || null,
+      date: article.date || '',
       title: article.title,
       snippet: article.snippet || '',
       url: article.url,
@@ -225,14 +233,19 @@ function dedupeMentions(mentions = []) {
   });
 }
 
-function existingMentionsFromRadar(radar = []) {
+function existingMentionsFromRadar(radar = [], span = '1d') {
   const mentions = [];
   for (const row of radar) {
     for (const evidence of (row.evidence || [])) {
       const geo = resolveBarriosFromResult({ title: evidence.title || '', snippet: evidence.snippet || '' });
       if (!geo.barrios.some((barrio) => barrio.name === row.barrio)) continue;
+      const classification = classifyElectricEvidence({ ...evidence, targetBarrio: row.barrio, span });
+      if (!classification.acceptedForBarrio) continue;
       mentions.push({
         ...evidence,
+        evidenceQuality: classification.evidenceQuality,
+        assignmentScope: classification.assignmentScope,
+        reasonCodes: classification.reasonCodes,
         barrio: row.barrio,
         comuna: row.comuna,
         sourceType: evidence.sourceType || 'media',
@@ -307,10 +320,10 @@ async function handleElectricidadV10(request, env) {
     : { articles: [], diagnostics: territorialEnabled ? { error: String(territorialResult?.reason?.message || territorialResult?.reason || 'sin resultado') } : { disabled: true }, plan: { barrios: [], queryCount: 0 }, disabled: !territorialEnabled };
 
   const inheritedRawCount = (base.radar || []).reduce((sum, row) => sum + (row.evidence || []).length, 0);
-  const inherited = existingMentionsFromRadar(base.radar || []);
-  const fromReddit = extractMentions(reddit.articles || [], 'citizen');
-  const fromWeb = extractMentions(web.articles || [], 'web');
-  const territorialExtracted = extractTerritorialMentions(territorial.articles || []);
+  const inherited = existingMentionsFromRadar(base.radar || [], span);
+  const fromReddit = extractMentions(reddit.articles || [], 'citizen', span);
+  const fromWeb = extractMentions(web.articles || [], 'web', span);
+  const territorialExtracted = extractTerritorialMentions(territorial.articles || [], span);
   const fromTerritorial = territorialExtracted.mentions;
   const fromEnre = enreMentions(enre.records || []);
   const mentions = dedupeMentions([...inherited, ...fromReddit, ...fromWeb, ...fromTerritorial, ...fromEnre]);
@@ -393,3 +406,6 @@ export default {
     return baseWorker.fetch(request, env);
   }
 };
+
+
+export { extractMentions, extractTerritorialMentions, existingMentionsFromRadar, enreMentions };

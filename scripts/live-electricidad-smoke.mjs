@@ -13,7 +13,9 @@ const TERRITORIAL_PILOT = ['Flores', 'Caballito', 'Almagro', 'Villa Lugano', 'Vi
 function summarizeGeneralSignal(article, sourceType = 'web') {
   const text = `${article.title || ''} ${article.snippet || ''}`.trim();
   const geo = resolveBarriosFromResult({ title: article.title || '', snippet: article.snippet || '' });
-  const barrios = geo.barrios.map((b) => ({ name: b.name, comuna: b.comuna }));
+  const classification = classifyElectricEvidence(article);
+  if (!classification.acceptedForBarrio) return null;
+  const barrios = geo.barrios.filter((b) => b.name === classification.targetBarrio).map((b) => ({ name: b.name, comuna: b.comuna }));
   const signals = matchElectricSignals(text).filter((s) => !['entity', 'context'].includes(s.signalType));
   if (!barrios.length || !signals.length) return null;
   return {
@@ -29,7 +31,8 @@ function summarizeGeneralSignal(article, sourceType = 'web') {
     query: article.query || null,
     geoPrecision: geo.precision,
     geoReason: geo.reason,
-    evidenceQuality: 'legacy_geo_filter',
+    evidenceQuality: classification.evidenceQuality,
+    reasonCodes: classification.reasonCodes,
     assignmentScope: 'barrio',
     signals: signals.map((s) => ({ phrase: s.phrase, subfamily: s.subfamily, weight: s.baseWeight })),
     maxWeight: Math.max(...signals.map((s) => s.baseWeight))
@@ -42,7 +45,8 @@ function evaluateTerritorialArticle(article) {
     snippet: article.snippet || '',
     targetBarrio: article.targetBarrio || '',
     source: article.source || '',
-    provider: article.provider || ''
+    provider: article.provider || '',
+    date: article.date || ''
   });
 
   if (!classification.acceptedForBarrio) return { article, classification, signal: null };
@@ -155,6 +159,8 @@ const territorialCitywideSignals = territorialEvaluations
   .map((item) => ({
     targetBarrio: item.article.targetBarrio,
     query: item.article.query,
+    date: item.article.date || '',
+    url: item.article.url,
     title: item.article.title,
     snippet: item.article.snippet,
     source: item.article.source,
@@ -169,6 +175,8 @@ const territorialRejectedSample = territorialEvaluations
   .map((item) => ({
     targetBarrio: item.article.targetBarrio,
     query: item.article.query,
+    date: item.article.date || '',
+    url: item.article.url,
     title: item.article.title,
     snippet: item.article.snippet,
     source: item.article.source,
@@ -220,7 +228,7 @@ const qualityCounts = territorialEvaluations.reduce((acc, item) => {
 
 const report = {
   ok: redditResult.status === 'fulfilled' || webResult.status === 'fulfilled' || territorialResult.status === 'fulfilled' || enreResult.status === 'fulfilled',
-  version: 'live-smoke-v7-evidence-quality',
+  version: 'live-smoke-v8-local-evidence-gate',
   startedAt,
   finishedAt: new Date().toISOString(),
   sourceHealth: {
@@ -250,6 +258,7 @@ const report = {
   territorialSignals: territorialSignals.slice(0, 50),
   territorialCitywideSignals: territorialCitywideSignals.slice(0, 30),
   territorialRejectedSample,
+  territorialEvaluations: territorialEvaluations.map(({ article, classification }) => ({ article, classification })),
   officialSignals: officialSignals.slice(0, 50)
 };
 
@@ -260,3 +269,4 @@ console.log(JSON.stringify(report, null, 2));
 if (redditResult.status === 'rejected' && webResult.status === 'rejected' && territorialResult.status === 'rejected' && enreResult.status === 'rejected') {
   process.exitCode = 1;
 }
+

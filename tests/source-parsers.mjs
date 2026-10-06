@@ -96,6 +96,7 @@ assert.equal(conflictingTarget.barrio, null);
 assert.equal(conflictingTarget.reason, 'conflicting_non_caba_title');
 
 const directFlores = classifyElectricEvidence({
+  date: '2026-10-06T12:00:00Z', now: Date.parse('2026-10-06T15:00:00Z'),
   targetBarrio: 'Flores',
   source: 'facebook.com',
   provider: 'Google Web Territorial (Serper)',
@@ -139,3 +140,4 @@ assert.equal(irrelevant.acceptedForBarrio, false);
 assert.equal(irrelevant.evidenceQuality, 'irrelevant');
 
 console.log('Source parser fixtures: OK');
+
