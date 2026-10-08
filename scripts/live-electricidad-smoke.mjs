@@ -170,6 +170,19 @@ const territorialCitywideSignals = territorialEvaluations
     reasonCodes: item.classification.reasonCodes,
     mentionedBarrios: item.classification.mentionedBarrios
   }));
+const territorialReviewCandidates = territorialEvaluations
+  .filter((item) => item.classification.reviewCandidate === true)
+  .map((item) => ({
+    targetBarrio: item.article.targetBarrio,
+    query: item.article.query,
+    date: item.article.date || '',
+    url: item.article.url,
+    title: item.article.title,
+    snippet: item.article.snippet,
+    source: item.article.source,
+    reviewReason: item.classification.reviewReason,
+    reasonCodes: item.classification.reasonCodes
+  }));
 const territorialRejectedSample = territorialEvaluations
   .filter((item) => !item.signal && item.classification.assignmentScope !== 'citywide')
   .slice(0, 20)
@@ -247,6 +260,7 @@ const report = {
     territorialWebRaw: territorial.articles.length,
     territorialWebUsefulBarrio: territorialSignals.length,
     territorialWebCitywide: territorialCitywideSignals.length,
+    territorialReviewCandidates: territorialReviewCandidates.length,
     territorialQueries: territorial.plan?.queryCount || 0,
     enreRaw: enre.records.length,
     enreCaba: officialSignals.length,
@@ -260,6 +274,7 @@ const report = {
   territorialSignals: territorialSignals.slice(0, 50),
   territorialCitywideSignals: territorialCitywideSignals.slice(0, 30),
   territorialRejectedSample,
+  territorialReviewCandidates,
   territorialEvaluations: territorialEvaluations.map(({ article, classification }) => ({ article, classification })),
   officialSignals: officialSignals.slice(0, 50)
 };
