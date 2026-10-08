@@ -206,7 +206,18 @@ export function classifyElectricEvidence({
   }
   if (!localIncident({ title, snippet, targetBarrio })) return reject('no_concrete_local_incident');
   const dateStatus = evidenceDateStatus(date, now, span);
-  if (dateStatus !== 'recent') return reject(dateStatus);
+  if (dateStatus !== 'recent') {
+    // Preserve the conservative alert gate, but surface geographically anchored
+    // incidents with missing dates for human review instead of losing them in
+    // the generic ambiguous bucket. Stale/future results are NOT review candidates.
+    return {
+      ...reject(dateStatus),
+      reviewCandidate: dateStatus === 'missing_or_unparseable_date',
+      reviewReason: dateStatus === 'missing_or_unparseable_date'
+        ? 'plausible_local_incident_missing_publication_date'
+        : null
+    };
+  }
 
   const strongExperience = firstPerson || persistence || repetition;
   const titleAnchored = target.reason === 'target_barrio_in_title';
