@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "npm run test:electricidad && npm run test:sources && npm run test:geo && npm run test:thermometer && npm run test:frontend && node tests/electricidad-evidence.mjs",
+    "test": "npm run test:electricidad && npm run test:sources && npm run test:geo && npm run test:thermometer && npm run test:frontend && node tests/electricidad-evidence.mjs && node tests/editorial-cases.mjs",
     "test:electricidad": "node tests/electricidad-parser.mjs",
     "test:sources": "node tests/source-parsers.mjs",
     "test:geo": "node tests/geo-context.mjs",

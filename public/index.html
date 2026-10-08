@@ -25,6 +25,10 @@
     </div>
   </header>
 
+  <section class="panel editorial-panel" aria-labelledby="editorialTitle">
+    <div class="panel-head"><div><span class="eyebrow">Agenda pública</span><h2 id="editorialTitle">Casos para trabajar</h2><p>Qué pasa, qué evidencia hay y qué respuesta falta.</p></div></div>
+    <div id="editorialCases" class="editorial-cases"><div class="empty-state">Esperando captura.</div></div>
+  </section>
   <main class="dashboard">
     <section class="map-panel panel">
       <div class="panel-head">
@@ -42,7 +46,7 @@
       </div>
 
       <div class="legend">
-        <span><i class="legend-dot verde"></i>Normal</span>
+        <span><i class="legend-dot verde"></i>Sin señal suficiente</span>
         <span><i class="legend-dot amarillo"></i>Atención</span>
         <span><i class="legend-dot naranja"></i>Problema</span>
         <span><i class="legend-dot rojo"></i>Crítico</span>
@@ -53,7 +57,7 @@
       <div class="panel-head alerts-head">
         <div>
           <span class="eyebrow">Ahora</span>
-          <h2>Problemas que están creciendo</h2>
+          <h2>Señales territoriales</h2>
         </div>
       </div>
       <div id="alerts" class="alerts-list">
@@ -68,7 +72,7 @@
   <section class="filters panel">
     <label><span>Problema</span><select id="problemFilter" disabled><option>Electricidad</option></select></label>
     <label><span>Comuna</span><select id="comunaFilter"><option value="all">Todas</option></select></label>
-    <label><span>Estado</span><select id="statusFilter"><option value="all">Todos</option><option value="amarillo">Atención</option><option value="naranja">Problema</option><option value="rojo">Crítico</option><option value="verde">Normal</option></select></label>
+    <label><span>Estado</span><select id="statusFilter"><option value="all">Todos</option><option value="amarillo">Atención</option><option value="naranja">Problema</option><option value="rojo">Crítico</option><option value="verde">Sin señal suficiente</option></select></label>
     <label><span>Ventana</span><select id="spanFilter"><option value="1d" selected>24 horas</option><option value="3d">3 días</option><option value="1w">7 días</option></select></label>
     <div class="filter-note">Los colores muestran señal detectada, no certeza absoluta.</div>
   </section>

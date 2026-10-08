@@ -1,3 +1,4 @@
+import { buildEditorialCases } from './data/editorial-cases.js';
 import baseWorker from './worker-v09.js';
 import { detectBarrios, findBarrioExact, resolveBarriosFromResult } from './data/caba-barrios.js';
 import { classifyElectricEvidence } from './data/electricidad-evidence.js';
@@ -394,6 +395,7 @@ async function handleElectricidadV10(request, env) {
       },
       enre: { diagnostics: enre.diagnostics || {}, totals: enre.totals || {} }
     },
+    editorialCases: buildEditorialCases({ signals: mentions, evaluations: territorialExtracted.evaluations, span }),
     radar,
     fetchedAt: new Date().toISOString()
   });

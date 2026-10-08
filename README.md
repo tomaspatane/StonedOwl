@@ -1,6 +1,19 @@
 # StonedOwl
 
-Radar experimental de señales urbanas para CABA.
+Radar de problemas de CABA para construir agenda pública y cuestionar la gestión con evidencia.
+
+## Objetivo de producto — 8 de octubre de 2026
+
+Entregar casos concretos para trabajo de comunicación política: qué sucede, dónde, cuándo, qué fuente lo documenta, qué respuesta se puede exigir y qué responsabilidad falta establecer. Un episodio aislado puede ser relevante; no necesita una tendencia ni un color alto para aparecer.
+
+La salida principal es `editorialCases`, disponible en el endpoint y en cada captura del piloto. Distingue casos documentados en una fuente de pistas para verificar. Incluye evidencia, pregunta a investigar, responsabilidad pendiente y siguiente paso. Las pistas no modifican el termómetro. No se generan acusaciones ni crecimiento a partir de menciones aisladas; una nota que cita ENRE no cuenta como corroboración independiente de ENRE.
+
+La interfaz preparada prioriza “Casos para trabajar”; el mapa queda como complemento. “Sin señal suficiente” reemplaza “Normal”: ausencia de resultados no acredita buen funcionamiento de los servicios.
+
+El alcance de captura sigue siendo Electricidad. Este cambio implementa la nueva salida y recupera como pista la formulación omitida “sin suministro eléctrico”; no implementa todavía lectura del cuerpo de las notas, nuevas fuentes, los otros cinco temas, rotación del piloto ni un nuevo programador. La frecuencia observada sigue pendiente de solución. El cambio de frontend requiere un despliegue separado; actualizar la rama sí cambia el escritor que usa el workflow horario.
+
+Criterio de éxito: casos relevantes recuperados a tiempo, correctamente ubicados y con evidencia consultable que permitan una acción concreta de comunicación o reclamo. El volumen de consultas y los colores no son resultados de comunicación.
+
 
 ## Estado actual
 
@@ -31,3 +44,4 @@ Los archivos estáticos de la raíz (`index.html`, `app.js`, `style.css`) se man
 ## Principio de desarrollo
 
 Primero precisión, después cobertura. Una mención no es un evento; un evento no cambia de color sin guardrails de evidencia, corroboración e impacto.
+

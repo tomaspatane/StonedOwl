@@ -1,3 +1,4 @@
+import { buildEditorialCases } from '../data/editorial-cases.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fetchRedditElectricidad } from '../sources/reddit-electricidad.js';
 import { fetchSerperRedditElectricidad } from '../sources/serper-reddit.js';
@@ -228,7 +229,7 @@ const qualityCounts = territorialEvaluations.reduce((acc, item) => {
 
 const report = {
   ok: redditResult.status === 'fulfilled' || webResult.status === 'fulfilled' || territorialResult.status === 'fulfilled' || enreResult.status === 'fulfilled',
-  version: 'live-smoke-v8-local-evidence-gate',
+  version: 'live-smoke-v9-editorial-cases',
   startedAt,
   finishedAt: new Date().toISOString(),
   sourceHealth: {
@@ -251,6 +252,7 @@ const report = {
     enreCaba: officialSignals.length,
     barriosWithSignal: radar.length
   },
+  editorialCases: buildEditorialCases({ signals: [...citizenSignals, ...webSignals, ...territorialSignals, ...officialSignals], evaluations: territorialEvaluations }),
   territorialEvidenceQuality: qualityCounts,
   radar,
   citizenSignals: citizenSignals.slice(0, 30),

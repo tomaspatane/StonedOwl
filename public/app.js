@@ -2,7 +2,7 @@ const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
 const STATUS_META = {
-  verde: { label: 'Normal', rank: 0 },
+  verde: { label: 'Sin señal suficiente', rank: 0 },
   amarillo: { label: 'Atención', rank: 1 },
   naranja: { label: 'Problema', rank: 2 },
   rojo: { label: 'Crítico', rank: 3 }
@@ -165,7 +165,23 @@ function renderHeader() {
   $('coverageNote').textContent = `Piloto Electricidad · ${territorial}`;
 }
 
+function renderEditorialCases() {
+  const cases = currentData?.editorialCases || [];
+  const comuna = $('comunaFilter').value;
+  const selected = cases.filter(item => comuna === 'all' || item.barrios.some(name => BARRIOS.some(b => b.name === name && String(b.comuna) === comuna)));
+  $('editorialCases').innerHTML = selected.length ? selected.map(item => {
+    const links = item.evidence.map(source => {
+      let url;
+      try { url = new URL(source.url); } catch { return ''; }
+      if (!['http:', 'https:'].includes(url.protocol)) return '';
+      return `<a href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">${esc(source.source)}</a> · ${esc(source.date || 'Sin fecha')}`;
+    }).join('<br>');
+    return `<article class="editorial-card"><small>${esc(item.evidenceLabel)} · ${esc(item.barrios.join(', '))}</small><h3>${esc(item.title)}</h3><p>${esc(item.reportedFact)}</p><p>${links}</p><p><strong>Pregunta a investigar:</strong> ${esc(item.question)}</p><p><strong>Responsabilidad:</strong> ${esc(item.responsibility.operator || 'Prestador por verificar')}; competencia y respuesta de gestión por verificar.</p><p><strong>Siguiente paso:</strong> ${esc(item.nextStep)}</p></article>`;
+  }).join('') : '<div class="empty-state">Sin casos recuperados en esta captura para la comuna elegida. No implica ausencia de problemas.</div>';
+}
+
 function renderAll() {
+  renderEditorialCases();
   renderHeader();
   renderMap();
   renderAlerts();
