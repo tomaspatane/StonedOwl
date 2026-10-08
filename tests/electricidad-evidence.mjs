@@ -29,6 +29,13 @@ const cases = [
 for (const [name, patch, accepted] of cases) {
   assert.equal(classifyElectricEvidence({ ...valid, ...patch }).acceptedForBarrio, accepted, name);
 }
+// Undated plausible incidents remain excluded from alerts, but are reviewable.
+const undatedReview = classifyElectricEvidence({ ...valid, date: '' });
+assert.equal(undatedReview.acceptedForBarrio, false);
+assert.equal(undatedReview.reviewCandidate, true);
+assert.equal(undatedReview.reviewReason, 'plausible_local_incident_missing_publication_date');
+assert.equal(classifyElectricEvidence({ ...valid, date: '2025-10-06T12:00:00Z' }).reviewCandidate, false);
+assert.notEqual(classifyElectricEvidence({ ...valid, title: 'Monoambiente en alquiler en Flores', date: '' }).reviewCandidate, true);
 for (const date of ['hace 2 horas', '2 hours ago', '30 minutes ago', '2026-10-06T12:00:00Z', 'Oct 6, 2026']) {
   assert.equal(evidenceDateStatus(date, now), 'recent', date);
 }
