@@ -11,7 +11,7 @@ const redditFixture = `<?xml version="1.0" encoding="UTF-8"?>
     <author><name>/u/vecino_flores</name></author>
     <title>Estamos sin luz en Flores hace horas</title>
     <link rel="alternate" href="https://www.reddit.com/r/BuenosAires/comments/test/corte/" />
-    <published>2026-10-01T18:00:00+00:00</published>
+    <published>${new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()}</published>
     <content type="html">&lt;p&gt;Otra vez sin luz y con baja tensión en la cuadra.&lt;/p&gt;</content>
   </entry>
 </feed>`;
