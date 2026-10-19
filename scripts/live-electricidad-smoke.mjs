@@ -199,13 +199,15 @@ for (const item of [...citizenSignals, ...webSignals, ...territorialSignals, ...
       webMentions: 0,
       territorialWebMentions: 0,
       officialRecords: 0,
-      affectedUsers: 0,
+      affectedUsers: null,
+      unknownAffectedCount: false,
       maxWeight: 0,
       sources: new Set()
     };
     if (item.official) {
       current.officialRecords += 1;
-      current.affectedUsers += Number(item.affectedUsers || 0);
+      if (!Number.isSafeInteger(item.affectedUsers)) current.unknownAffectedCount = true;
+      else current.affectedUsers = (current.affectedUsers ?? 0) + item.affectedUsers;
     } else if (item.sourceType === 'citizen') {
       current.citizenMentions += 1;
     } else if (item.sourceType === 'territorial_web') {
@@ -220,7 +222,7 @@ for (const item of [...citizenSignals, ...webSignals, ...territorialSignals, ...
 }
 
 const radar = [...byBarrio.values()]
-  .map((item) => ({ ...item, sources: [...item.sources] }))
+  .map((item) => ({ ...item, affectedUsers: item.unknownAffectedCount ? null : item.affectedUsers, sources: [...item.sources] }))
   .sort((a, b) => b.affectedUsers - a.affectedUsers || b.citizenMentions - a.citizenMentions || b.territorialWebMentions - a.territorialWebMentions || b.webMentions - a.webMentions || b.maxWeight - a.maxWeight);
 
 const qualityCounts = territorialEvaluations.reduce((acc, item) => {

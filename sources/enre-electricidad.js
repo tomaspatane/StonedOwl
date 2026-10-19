@@ -132,7 +132,9 @@ async function fetchOne(endpoint, fetchImpl) {
       withoutSupply: data.totalUsuariosSinSuministro ?? null,
       withSupply: data.totalUsuariosConSuministro ?? null,
       yesterdayAffected: data.totalUsuariosAyer ?? null,
-      updatedAt: data.ultimaActualizacion ?? null
+      updatedAt: data.ultimaActualizacion ?? null,
+      httpLastModified: response.headers?.get?.('last-modified') || null,
+      httpDate: response.headers?.get?.('date') || null
     }
   };
 }

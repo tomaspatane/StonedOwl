@@ -1,0 +1,27 @@
+diff --git a/.github/workflows/electricidad-pilot-hourly.yml b/.github/workflows/electricidad-pilot-hourly.yml
+--- a/.github/workflows/electricidad-pilot-hourly.yml
++++ b/.github/workflows/electricidad-pilot-hourly.yml
+@@ -7,6 +7,7 @@ on:
+ 
+ permissions:
+   contents: read
++  actions: read
+ 
+ concurrency:
+   group: stonedowl-electricidad-hourly
+@@ -29,9 +30,15 @@ jobs:
+       - name: Run electricity tests
+         run: npm test
+ 
++      - name: Restore previous electricity snapshot
++        env:
++          GITHUB_TOKEN: ${{ github.token }}
++        run: node scripts/restore-previous-electricidad.mjs
++
+       - name: Capture live electricity snapshot
+         env:
+           SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
++          PREVIOUS_REPORT: tmp/previous-electricidad-report.json
+         run: npm run smoke:electricidad
+ 
+       - name: Upload snapshot
