@@ -95,6 +95,8 @@ function summarizeOfficial(record) {
     sourceType: 'official',
     date: record.date,
     sourceUpdatedAt: record.sourceUpdatedAt || null,
+        sourceTimeBasis: record.sourceTimeBasis || null,
+        rawSourceUpdatedAt: record.rawSourceUpdatedAt || null,
     title: record.title,
     snippet: record.snippet || '',
     url: record.url,

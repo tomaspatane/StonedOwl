@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { compareElectricitySnapshots, parseEnreUpdatedAt, ELECTRICITY_TREND_LIMITS } from '../data/electricidad-trend.js';
+import { compareElectricitySnapshots, parseEnreUpdatedAt, resolveEnreSourceUpdatedAt, ELECTRICITY_TREND_LIMITS } from '../data/electricidad-trend.js';
 
 const CURRENT = '2026-10-19T19:00:00Z';
 const PREVIOUS = '2026-10-19T18:00:00Z';
@@ -194,6 +194,47 @@ test('strict full ISO and Argentine local source timestamp parsing', () => {
   assert.equal(parseEnreUpdatedAt('19-10-2026 15:59:20'), Date.parse('2026-10-19T18:59:20Z'));
   assert.equal(parseEnreUpdatedAt('2026-10-19T15:59:00-03:00'), Date.parse('2026-10-19T18:59:00Z'));
   for (const bad of ['19/10/2026', '2026-10-19', '18:59', '2026-10-19T18:59:00', '30/02/2026 12:00', '2026-02-30T12:00:00Z', '2026-10-19T24:00:00Z', '19/10/2026 29:00', null, 123]) assert.equal(parseEnreUpdatedAt(bad), null, String(bad));
+});
+
+test('clock-only source update is anchored to dated source Last-Modified, not now', () => {
+  assert.equal(resolveEnreSourceUpdatedAt('16:20', 'Mon, 19 Oct 2026 19:22:52 GMT'), '2026-10-19T19:20:00.000Z');
+  assert.equal(resolveEnreSourceUpdatedAt('16:20:51', 'Mon, 19 Oct 2026 19:22:52 GMT'), '2026-10-19T19:20:51.000Z');
+  assert.equal(resolveEnreSourceUpdatedAt('16:20', 'Sun, 18 Oct 2026 19:22:52 GMT'), '2026-10-18T19:20:00.000Z');
+  assert.equal(resolveEnreSourceUpdatedAt('16:20', null), null, 'A new HTTP Date without Last-Modified cannot anchor it');
+});
+
+test('clock anchor handles Argentine midnight without inventing another day', () => {
+  assert.equal(resolveEnreSourceUpdatedAt('23:58', 'Tue, 20 Oct 2026 03:02:00 GMT'), '2026-10-20T02:58:00.000Z');
+  assert.equal(resolveEnreSourceUpdatedAt('00:01', 'Tue, 20 Oct 2026 03:02:00 GMT'), '2026-10-20T03:01:00.000Z');
+  assert.equal(resolveEnreSourceUpdatedAt('00:04', 'Tue, 20 Oct 2026 03:02:00 GMT'), null);
+  assert.equal(resolveEnreSourceUpdatedAt('23:50', 'Tue, 20 Oct 2026 03:02:00 GMT'), null);
+  assert.equal(resolveEnreSourceUpdatedAt('23:58', 'Thu, 01 Jan 2026 03:02:00 GMT'), '2026-01-01T02:58:00.000Z');
+});
+
+test('source clock must precede Last-Modified by no more than ten minutes', () => {
+  assert.equal(resolveEnreSourceUpdatedAt('16:20', 'Mon, 19 Oct 2026 19:20:00 GMT'), '2026-10-19T19:20:00.000Z');
+  assert.equal(resolveEnreSourceUpdatedAt('16:20', 'Mon, 19 Oct 2026 19:30:00 GMT'), '2026-10-19T19:20:00.000Z');
+  assert.equal(resolveEnreSourceUpdatedAt('16:20', 'Mon, 19 Oct 2026 19:30:01 GMT'), null);
+  assert.equal(resolveEnreSourceUpdatedAt('16:23', 'Mon, 19 Oct 2026 19:22:52 GMT'), null);
+});
+
+test('malformed dates, weekdays, time zones and clocks fail closed', () => {
+  const header = 'Mon, 19 Oct 2026 19:22:52 GMT';
+  for (const clock of [null, 1620, '', '16:60', '24:00', '16:20:60', '4:20', ' 16:20', '16:20 ART', '2026-10-19T19:20:00Z']) {
+    assert.equal(resolveEnreSourceUpdatedAt(clock, header), null, String(clock));
+  }
+  for (const modified of [null, '', '2026-10-19T19:22:52Z', 'Mon, 19 Oct 2026 19:22:52 -0000', 'Mon, 19 Oct 2026 19:22:52 UTC', 'Sun, 19 Oct 2026 19:22:52 GMT', 'Mon, 19 Oct 2026 24:22:52 GMT', 'Mon, 19 Oct 2026 19:60:52 GMT', 'Mon, 19 Oct 2026 19:22:60 GMT', 'Mon, 30 Feb 2026 19:22:52 GMT', 'Mon, 19 Oct 2026 19:22:52 GMT trailing']) {
+    assert.equal(resolveEnreSourceUpdatedAt('16:20', modified), null, String(modified));
+  }
+});
+
+test('old Last-Modified stays old and is blocked by snapshot freshness', () => {
+  const input = pair();
+  for (const company of ['EDENOR', 'EDESUR']) {
+    input.current.enreTotals[company].updatedAt = '16:20';
+    input.current.enreTotals[company].sourceUpdatedAt = resolveEnreSourceUpdatedAt('16:20', 'Sun, 18 Oct 2026 19:22:52 GMT');
+  }
+  unknown(input, 'stale_source_update');
 });
 
 test('stale source update in either capture blocks, not merely failed HTTP', () => {

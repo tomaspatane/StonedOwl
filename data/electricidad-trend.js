@@ -51,6 +51,34 @@ export function parseEnreUpdatedAt(value) {
   return timestamp(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hour}:${minute}:${second}-03:00`);
 }
 
+/**
+ * Resolve ENRE's clock-only update using the source representation's dated
+ * Last-Modified header, never fetch time or the HTTP Date response header.
+ * Basis for a non-null result: enre_clock_and_http_last_modified_art.
+ * Accept only an exact IMF-fixdate (RFC 7231) and an Argentine clock at most
+ * ten minutes before it. Near midnight, the preceding Argentine calendar day
+ * is eligible only under that same bound. Old headers intentionally produce
+ * old timestamps: the normal freshness gate, not this resolver, rejects them.
+ */
+export function resolveEnreSourceUpdatedAt(clock, httpLastModified) {
+  if (typeof clock !== 'string' || typeof httpLastModified !== 'string') return null;
+  const clockMatch = clock.match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (!clockMatch || Number(clockMatch[1]) > 23 || Number(clockMatch[2]) > 59 || Number(clockMatch[3] || 0) > 59) return null;
+  if (!/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(httpLastModified)) return null;
+  const modifiedAt = Date.parse(httpLastModified);
+  // This also rejects impossible dates, invalid hours and incorrect weekdays.
+  if (!Number.isFinite(modifiedAt) || new Date(modifiedAt).toUTCString() !== httpLastModified) return null;
+  const argentineDate = modifiedAt - 3 * 60 * 60 * 1000;
+  for (const dayOffset of [0, 1]) {
+    const date = new Date(argentineDate - dayOffset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const candidate = timestamp(`${date}T${clock}-03:00`);
+    if (candidate !== null && candidate <= modifiedAt && modifiedAt - candidate <= 10 * 60 * 1000) {
+      return new Date(candidate).toISOString();
+    }
+  }
+  return null;
+}
+
 function validCount(value) {
   // Missing, string, negative, rounded or unsafe values must never become zero.
   return Number.isSafeInteger(value) && value >= 0;

@@ -213,6 +213,8 @@ function enreMentions(records = []) {
         locality: record.locality,
         partido: record.partido,
         sourceUpdatedAt: record.sourceUpdatedAt || null,
+        sourceTimeBasis: record.sourceTimeBasis || null,
+        rawSourceUpdatedAt: record.rawSourceUpdatedAt || null,
         currentOfficial: (() => { const t = parseEnreUpdatedAt(record.sourceUpdatedAt); return t !== null && t <= Date.now() + 120000 && Date.now() - t <= 1800000; })(),
         signalIds: [`enre_${record.enreType || 'interrupcion'}`],
         signalPhrases: [`ENRE: ${(record.enreType || 'interrupción').replace(/_/g, ' ')}`],

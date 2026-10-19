@@ -1,3 +1,4 @@
+import { parseEnreUpdatedAt, resolveEnreSourceUpdatedAt } from '../data/electricidad-trend.js';
 import { normalizePlaceText } from '../data/caba-barrios.js';
 
 // A homonymous locality outside the city is not evidence for a CABA barrio.
@@ -124,7 +125,11 @@ async function fetchOne(endpoint, fetchImpl) {
   if (!Object.keys(data).some(key => /^cortes/i.test(key) && Array.isArray(data[key])) || !Object.hasOwn(data, 'totalUsuariosSinSuministro')) {
     throw new Error('ENRE schema no reconocido: no afirmar ausencia de cortes');
   }
-  const records = flattenEnreCuts(data, endpoint.company, endpoint.url);
+  const httpLastModified = response.headers?.get?.('last-modified') || null;
+  const directSourceTime = parseEnreUpdatedAt(data.ultimaActualizacion);
+  const sourceUpdatedAt = directSourceTime === null ? resolveEnreSourceUpdatedAt(data.ultimaActualizacion, httpLastModified) : new Date(directSourceTime).toISOString();
+  const sourceTimeBasis = directSourceTime !== null ? 'full_source_timestamp' : sourceUpdatedAt ? 'enre_clock_and_http_last_modified_art' : 'unknown';
+  const records = flattenEnreCuts(data, endpoint.company, endpoint.url).map(record => ({ ...record, rawSourceUpdatedAt: record.sourceUpdatedAt, sourceUpdatedAt, sourceTimeBasis }));
   return {
     company: endpoint.company,
     records,
@@ -133,6 +138,8 @@ async function fetchOne(endpoint, fetchImpl) {
       withSupply: data.totalUsuariosConSuministro ?? null,
       yesterdayAffected: data.totalUsuariosAyer ?? null,
       updatedAt: data.ultimaActualizacion ?? null,
+      sourceUpdatedAt,
+      sourceTimeBasis,
       httpLastModified: response.headers?.get?.('last-modified') || null,
       httpDate: response.headers?.get?.('date') || null
     }

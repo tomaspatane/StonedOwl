@@ -41,7 +41,7 @@ export function buildEditorialCases({ signals = [], evaluations = [], now = Date
       reportedFact: article.snippet || article.title || '',
       evidenceStatus: pending ? 'por_verificar' : 'fuente_identificada',
       evidenceLabel: pending ? 'Pista para verificar' : 'Documentado en una fuente',
-      evidence: [{ url: url.href, source: article.source || article.provider || url.hostname, date: article.date || null, sourceUpdatedAt: article.sourceUpdatedAt || null, provenance: article.provenance || null }],
+      evidence: [{ url: url.href, source: article.source || article.provider || url.hostname, date: article.date || null, sourceUpdatedAt: article.sourceUpdatedAt || null, sourceTimeBasis: article.sourceTimeBasis || null, rawSourceUpdatedAt: article.rawSourceUpdatedAt || null, provenance: article.provenance || null }],
       dateStatus, affectedUsers: official ? article.affectedUsers ?? null : null,
       eventType: ['programado', 'programado_comunicado'].includes(article.enreType) ? 'programado' : 'reporte',
       responsibility: { operator: official ? article.company || null : null, government: null, status: 'por_verificar' },

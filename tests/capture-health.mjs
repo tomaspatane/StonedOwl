@@ -35,3 +35,11 @@ assert.equal(summarizeSourceHealth({ diagnostics: { ok: true, queries: [{ ok: tr
 assert.equal(mentions[0].currentOfficial, false, 'Stale source cannot drive current score');
 
 assert.equal(enreMentions([{...records[0], locality:'FLORES / CABALLITO', affectedUsers:6000}]).length, 0, 'Do not assign full count to each of multiple localities');
+const dated = await fetchEnreElectricidad(async () => ({
+ ok: true, headers: new Headers({ 'last-modified':'Mon, 19 Oct 2026 19:22:52 GMT', date:'Mon, 19 Oct 2026 19:26:32 GMT' }),
+ text: async () => JSON.stringify({ ultimaActualizacion:'16:20', totalUsuariosSinSuministro:106, cortesServicioBaja:[{partido:'CAPITAL',localidad:'PARQUE AVELLANEDA',usuarios:106}] })
+}));
+assert.equal(dated.records[0].sourceUpdatedAt, '2026-10-19T19:20:00.000Z');
+assert.equal(dated.records[0].rawSourceUpdatedAt, '16:20');
+assert.equal(dated.records[0].sourceTimeBasis, 'enre_clock_and_http_last_modified_art');
+assert.equal(dated.totals.EDESUR.sourceUpdatedAt, '2026-10-19T19:20:00.000Z');
