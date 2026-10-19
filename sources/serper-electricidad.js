@@ -29,6 +29,7 @@ function timeFilter(span) {
 async function searchOne(q, span, apiKey, fetchImpl) {
   const response = await fetchImpl('https://google.serper.dev/search', {
     method: 'POST',
+    signal: AbortSignal.timeout(12000),
     headers: {
       'content-type': 'application/json',
       'X-API-KEY': apiKey

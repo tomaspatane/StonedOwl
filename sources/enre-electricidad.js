@@ -1,3 +1,10 @@
+import { normalizePlaceText } from '../data/caba-barrios.js';
+
+// A homonymous locality outside the city is not evidence for a CABA barrio.
+export function isCabaEnreRecord(record = {}) {
+  return /^(capital|capital federal|ciudad autonoma de buenos aires|caba|c[.]?a[.]?b[.]?a[.]?|ciudad de buenos aires)$/.test(normalizePlaceText(record.partido || ''));
+}
+
 const ENDPOINTS = [
   { company: 'EDESUR', code: 'EDS', url: 'https://www.enre.gov.ar/paginacorte/js/data_EDS.js' },
   { company: 'EDENOR', code: 'EDN', url: 'https://www.enre.gov.ar/paginacorte/js/data_EDN.js' }
@@ -31,9 +38,11 @@ export function parseEnrePayload(raw = '') {
 }
 
 function affectedUsers(value) {
-  if (typeof value === 'number' && Number.isFinite(value)) return Math.max(0, Math.round(value));
-  const digits = String(value ?? '').replace(/[^0-9]/g, '');
-  return digits ? Number(digits) : 0;
+  if (typeof value === 'number') return Number.isSafeInteger(value) && value >= 0 ? value : null;
+  const text = String(value ?? '').trim();
+  if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+)$/.test(text)) return null;
+  const count = Number(text.replaceAll('.', ''));
+  return Number.isSafeInteger(count) ? count : null;
 }
 
 function cutType(key = '') {
@@ -83,6 +92,8 @@ export function flattenEnreCuts(data = {}, company = 'ENRE', sourceUrl = '') {
         source: `ENRE/${company}`,
         provider: 'ENRE',
         date: now,
+        observedAt: now,
+        sourceUpdatedAt: data.ultimaActualizacion ?? null,
         sourceType: 'official',
         official: true,
         company,
@@ -101,6 +112,7 @@ export function flattenEnreCuts(data = {}, company = 'ENRE', sourceUrl = '') {
 async function fetchOne(endpoint, fetchImpl) {
   const cacheBust = `${endpoint.url}?_=${Date.now()}`;
   const response = await fetchImpl(cacheBust, {
+    signal: AbortSignal.timeout(15000),
     headers: {
       accept: 'application/javascript, text/javascript, text/plain, */*',
       'user-agent': 'Mozilla/5.0 (compatible; StonedOwl/0.10; +https://github.com/tomaspatane/StonedOwl)'
@@ -109,6 +121,9 @@ async function fetchOne(endpoint, fetchImpl) {
   const raw = await response.text();
   if (!response.ok) throw new Error(`${endpoint.company} HTTP ${response.status}: ${raw.slice(0, 180)}`);
   const data = parseEnrePayload(raw);
+  if (!Object.keys(data).some(key => /^cortes/i.test(key) && Array.isArray(data[key])) || !Object.hasOwn(data, 'totalUsuariosSinSuministro')) {
+    throw new Error('ENRE schema no reconocido: no afirmar ausencia de cortes');
+  }
   const records = flattenEnreCuts(data, endpoint.company, endpoint.url);
   return {
     company: endpoint.company,

@@ -69,7 +69,7 @@ export function evidenceDateStatus(date = '', now = Date.now(), span = '1d') {
              /^(?:[a-z]{3,9} \d{1,2},? \d{4}|\d{1,2} [a-z]{3,9} \d{4})$/.test(value)) {
     ms = Date.parse(value);
   }
-  const windowMs = (span === '1w' ? 7 : span === '3d' ? 3 : 1) * 86400000;
+  const windowMs = ({ '6h': 21600000, '1d': 86400000, '3d': 259200000, '1w': 604800000 })[span] || 86400000;
   if (!value || !Number.isFinite(ms)) return 'missing_or_unparseable_date';
   if (ms > Number(now)) return 'future_date';
   return Number(now) - ms > windowMs ? 'outside_time_window' : 'recent';

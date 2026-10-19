@@ -24,10 +24,15 @@ function scoreForStatus(rawScore, status) {
   return Math.max(65, score);
 }
 
+function citesEnre(mention = {}) {
+  return /\b(datos del enre|segun (?:el )?enre|informo (?:el )?enre)\b/.test(normalize(`${mention.title || ''} ${mention.snippet || ''}`));
+}
+
 function sourceIdentity(mention = {}) {
+  if (mention.official || citesEnre(mention)) return 'ENRE';
   if (mention.sourceType === 'citizen' || mention.sourceType === 'territorial_web') {
     if (mention.author) return `${mention.provider || mention.sourceType}:${mention.author}`;
-    if (mention.url) return `${mention.sourceType}:${normalize(String(mention.url).replace(/[?#].*$/, ''))}`;
+    if (mention.sourceType === 'citizen' && mention.url) return `${mention.sourceType}:${normalize(String(mention.url).replace(/[?#].*$/, ''))}`;
   }
   return mention.source || mention.provider || mention.url || mention.title || '';
 }
@@ -48,7 +53,7 @@ function isScheduledOfficial(mention = {}) {
 }
 
 function isStrongLocal(mention = {}) {
-  return ['direct_local_report', 'local_report'].includes(mention.evidenceQuality);
+  return !citesEnre(mention) && ['direct_local_report', 'local_report'].includes(mention.evidenceQuality);
 }
 
 function isWeakLocal(mention = {}) {
@@ -60,7 +65,8 @@ function independentCount(mentions = []) {
 }
 
 function sumAffected(mentions = []) {
-  return mentions.reduce((sum, mention) => sum + (Number(mention.affectedUsers) || 0), 0);
+  if (!mentions.length || mentions.some(mention => !Number.isSafeInteger(mention.affectedUsers))) return null;
+  return mentions.reduce((sum, mention) => sum + mention.affectedUsers, 0);
 }
 
 export function calibrateElectricityRow(row = {}) {
@@ -83,8 +89,8 @@ export function calibrateElectricityRow(row = {}) {
         independentSources: 0,
         strongLocalSources: 0,
         officialRecords: 0,
-        affectedUsersUnplanned: 0,
-        affectedUsersScheduled: 0
+        affectedUsersUnplanned: null,
+        affectedUsersScheduled: null
       }
     };
   }

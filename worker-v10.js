@@ -1,13 +1,11 @@
+import { parseEnreUpdatedAt } from './data/electricidad-trend.js';
+import { captureHealth, fetchWebElectricity, fetchCitizenElectricity } from './sources/electricidad-capture.js';
 import { buildEditorialCases } from './data/editorial-cases.js';
 import baseWorker from './worker-v09.js';
-import { detectBarrios, findBarrioExact, resolveBarriosFromResult } from './data/caba-barrios.js';
+import { CABA_BARRIOS, detectBarrios, findBarrioExact, resolveBarriosFromResult } from './data/caba-barrios.js';
 import { classifyElectricEvidence } from './data/electricidad-evidence.js';
 import { matchElectricSignals } from './data/electricidad.js';
-import { fetchRedditElectricidad } from './sources/reddit-electricidad.js';
-import { fetchSerperRedditElectricidad } from './sources/serper-reddit.js';
-import { fetchSerperElectricidad } from './sources/serper-electricidad.js';
-import { fetchSerperElectricidadTerritorial } from './sources/serper-electricidad-territorial.js';
-import { fetchEnreElectricidad } from './sources/enre-electricidad.js';
+import { fetchEnreElectricidad, isCabaEnreRecord } from './sources/enre-electricidad.js';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
@@ -48,9 +46,10 @@ function statusFromScore(score) {
 }
 
 function sourceIdentity(mention) {
+  if (mention.official || /\b(datos del enre|segun (?:el )?enre|informo (?:el )?enre)\b/.test(normalizeText(`${mention.title || ''} ${mention.snippet || ''}`))) return 'ENRE';
   if (mention.sourceType === 'citizen' || mention.sourceType === 'territorial_web') {
     if (mention.author) return `${mention.provider || 'citizen'}:${mention.author}`;
-    if (mention.url) return `${mention.sourceType}:${normalizeText(String(mention.url).replace(/[?#].*$/, ''))}`;
+    if (mention.sourceType === 'citizen' && mention.url) return `${mention.sourceType}:${normalizeText(String(mention.url).replace(/[?#].*$/, ''))}`;
   }
   return mention.source || mention.provider || safeDomain(mention.url) || mention.url || mention.title;
 }
@@ -70,7 +69,8 @@ function scoreBarrio(mentions) {
   const volume = Math.min(25, mentions.length * 4);
   const diversity = Math.min(20, independentSources * 5);
   const avgWeight = mentions.length ? mentions.reduce((sum, m) => sum + (Number(m.maxWeight) || 0), 0) / mentions.length : 0;
-  const affectedUsers = mentions.reduce((sum, m) => sum + (Number(m.affectedUsers) || 0), 0);
+  const officialCounts = mentions.filter(m => m.official || m.sourceType === 'official');
+  const affectedUsers = !officialCounts.length || officialCounts.some(m => !Number.isSafeInteger(m.affectedUsers)) ? null : officialCounts.reduce((sum, m) => sum + m.affectedUsers, 0);
   const impactSeverity = affectedUsers >= 5000 ? 15 : affectedUsers >= 1000 ? 12 : affectedUsers >= 250 ? 9 : affectedUsers >= 50 ? 6 : 0;
   const severity = Math.min(15, Math.max(Math.round(avgWeight * 3), impactSeverity));
   const velocity = Math.min(20, mentions.reduce((sum, m) => sum + freshnessPoints(m.date), 0));
@@ -114,6 +114,7 @@ function extractMentions(articles = [], sourceType = 'web', span = '1d') {
         url: article.url,
         source: article.source || safeDomain(article.url),
         provider: article.provider || 'Web',
+        provenance: article.provenance || null,
         date: article.date,
         author: article.author || '',
         sourceType,
@@ -170,6 +171,7 @@ function extractTerritorialMentions(articles = [], span = '1d') {
       url: article.url,
       source: article.source || safeDomain(article.url),
       provider: article.provider || 'Google Web Territorial (Serper)',
+      provenance: article.provenance || null,
       date: article.date,
       sourceType: 'territorial_web',
       signalIds: meaningful.map((signal) => signal.id),
@@ -189,8 +191,9 @@ function extractTerritorialMentions(articles = [], span = '1d') {
 function enreMentions(records = []) {
   const mentions = [];
   for (const record of records) {
+    if (!isCabaEnreRecord(record)) continue;
     const exact = findBarrioExact(record.locality || '');
-    const barrios = exact ? [exact] : detectBarrios(record.locality || '');
+    const barrios = exact ? [exact] : [];
     if (!barrios.length) continue;
     for (const barrio of barrios) {
       mentions.push({
@@ -204,7 +207,13 @@ function enreMentions(records = []) {
         date: record.date,
         sourceType: 'official',
         official: true,
-        affectedUsers: record.affectedUsers || 0,
+        affectedUsers: record.affectedUsers ?? null,
+        company: record.company,
+        enreType: record.enreType,
+        locality: record.locality,
+        partido: record.partido,
+        sourceUpdatedAt: record.sourceUpdatedAt || null,
+        currentOfficial: (() => { const t = parseEnreUpdatedAt(record.sourceUpdatedAt); return t !== null && t <= Date.now() + 120000 && Date.now() - t <= 1800000; })(),
         signalIds: [`enre_${record.enreType || 'interrupcion'}`],
         signalPhrases: [`ENRE: ${(record.enreType || 'interrupción').replace(/_/g, ' ')}`],
         maxWeight: record.maxWeight || 4,
@@ -277,32 +286,22 @@ function sourceMix(local = []) {
   }, {})).sort((a, b) => b[1] - a[1]).map(([provider, count]) => ({ provider, count }));
 }
 
-async function fetchCitizenElectricity(span, env) {
-  if (env?.SERPER_API_KEY) {
-    const result = await fetchSerperRedditElectricidad(span, env.SERPER_API_KEY);
-    return { ...result, mode: 'google-web-reddit' };
-  }
-  const result = await fetchRedditElectricidad(span);
-  return { ...result, mode: 'direct-reddit-fallback' };
-}
-
 async function handleElectricidadV10(request, env) {
   const url = new URL(request.url);
   const territorialEnabled = url.searchParams.get('territorial') === '1';
-  const baseResponse = await baseWorker.fetch(request, env);
-  let base;
-  try { base = await baseResponse.json(); }
-  catch { return baseResponse; }
-  if (!base?.ok) return json(base, baseResponse.status || 500);
-
-  const span = base.span || '1d';
+  const span = ['6h', '1d', '3d', '1w'].includes(url.searchParams.get('span')) ? url.searchParams.get('span') : '1d';
+  const requested = (url.searchParams.get('barrios') || '').split(',').map(normalizeText).filter(Boolean);
+  const barrios = requested.length ? CABA_BARRIOS.filter(b => [b.name, ...(b.aliases || [])].some(name => requested.includes(normalizeText(name)))) : CABA_BARRIOS;
+  if (!barrios.length) return json({ ok: false, error: 'No se reconocieron barrios válidos.' }, 400);
+  // Do not invoke the legacy batch search: it spends credits and masks source failures.
+  const base = { ok: true, family: 'electricidad', span, scope: 'CABA', coverage: { barriosRequested: barrios.length }, radar: barrios.map(b => ({ barrio: b.name, comuna: b.comuna })) };
   const sourceTasks = [
-    fetchCitizenElectricity(span, env),
-    fetchSerperElectricidad(span, env?.SERPER_API_KEY || ''),
+    fetchCitizenElectricity(span, env?.SERPER_API_KEY || ''),
+    fetchWebElectricity(span, env?.SERPER_API_KEY || ''),
     fetchEnreElectricidad()
   ];
   if (territorialEnabled) {
-    sourceTasks.push(fetchSerperElectricidadTerritorial(span, env?.SERPER_API_KEY || '', { batchSize: 12 }));
+    sourceTasks.push(fetchWebElectricity(span, env?.SERPER_API_KEY || '', { territorial: true, batchSize: 12 }));
   }
   const settled = await Promise.allSettled(sourceTasks);
   const [redditResult, webResult, enreResult, territorialResult] = settled;
@@ -330,7 +329,7 @@ async function handleElectricidadV10(request, env) {
   const mentions = dedupeMentions([...inherited, ...fromReddit, ...fromWeb, ...fromTerritorial, ...fromEnre]);
 
   const radar = (base.radar || []).map((row) => {
-    const local = mentions.filter((mention) => mention.barrio === row.barrio);
+    const local = mentions.filter((mention) => mention.barrio === row.barrio && (!mention.official || mention.currentOfficial));
     const scored = scoreBarrio(local);
     return {
       ...row,
@@ -358,9 +357,12 @@ async function handleElectricidadV10(request, env) {
 
   return json({
     ...base,
-    version: '0.13-electricidad-territorial-evidence',
+    version: '0.15-electricidad-free-capture',
+    ok: captureHealth({ reddit, web, territorial, enre }).status === 'healthy',
+    captureUsable: captureHealth({ reddit, web, territorial, enre }).usable,
+    captureHealth: captureHealth({ reddit, web, territorial, enre }),
     provisional: true,
-    methodology: 'El score exploratorio combina web/noticias, Google Web, relatos ciudadanos encontrados en Reddit y confirmación oficial del ENRE. Con ?territorial=1 se agrega un barrido rotativo de 12 barrios con búsquedas específicas y un clasificador de evidencia que separa reportes barriales, eventos citywide, geografía conflictiva y ruido. Sólo la evidencia aceptada con alcance barrio entra al score. Intensidad y confianza siguen separadas. Todavía no usa baseline histórico.',
+    methodology: 'La captura usa fuentes públicas sin clave, Reddit y ENRE, con Serper sólo como respaldo opcional. La salud de las fuentes se informa por separado: cero resultados no acredita ausencia de problemas. Con ?territorial=1 se agrega un barrido rotativo de 12 barrios con búsquedas específicas y un clasificador de evidencia que separa reportes barriales, eventos citywide, geografía conflictiva y ruido. Sólo la evidencia aceptada con alcance barrio entra al score. Intensidad y confianza siguen separadas. Todavía no usa baseline histórico.',
     coverage: {
       ...(base.coverage || {}),
       inheritedRawEvidence: inheritedRawCount,

@@ -17,7 +17,7 @@ export default {
     let payload;
     try { payload = await response.json(); }
     catch { return response; }
-    if (!payload?.ok) return json(payload, response.status || 500);
+    if (!payload?.ok && !payload?.captureUsable) return json(payload, response.status || 500);
 
     const radar = calibrateElectricityRadar(payload.radar || []);
     const counts = radar.reduce((acc, row) => {

@@ -23,6 +23,7 @@ function official({ users = 0, type = 'media_tension' } = {}) {
 function citizen(id, quality = 'direct_local_report', maxWeight = 3) {
   return {
     source: 'facebook.com',
+    author: `verified-author-${id}`,
     provider: 'Google Web Territorial (Serper)',
     sourceType: 'territorial_web',
     evidenceQuality: quality,
@@ -97,3 +98,16 @@ function citizen(id, quality = 'direct_local_report', maxWeight = 3) {
 }
 
 console.log('Electricity thermometer calibration fixtures: OK');
+
+{
+  const samePublisher = ['one','two'].map(id => ({ ...citizen(id), author: null, source: 'local-newspaper.test' }));
+  const calibrated = calibrateElectricityRow(row(24, samePublisher));
+  assert.equal(calibrated.status, 'amarillo', 'Two articles from one publisher are not two independent sources');
+}
+
+{
+ const derived = { ...citizen('media'), author: null, source: 'revistaelabasto.com.ar', snippet: 'Datos del ENRE.' };
+ const calibrated = calibrateElectricityRow(row(25, [official({ users: 12 }), derived]));
+ assert.equal(calibrated.status, 'amarillo', 'ENRE-citing article is not independent citizen corroboration');
+ assert.equal(calibrated.evidenceSummary.independentSources, 1);
+}

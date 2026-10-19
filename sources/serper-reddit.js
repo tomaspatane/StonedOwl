@@ -43,6 +43,7 @@ async function searchQuery(subreddit, phrase, span, apiKey, fetchImpl) {
   const q = `reddit r/${subreddit} ${phrase}`;
   const response = await fetchImpl('https://google.serper.dev/search', {
     method: 'POST',
+    signal: AbortSignal.timeout(12000),
     headers: {
       'content-type': 'application/json',
       'X-API-KEY': apiKey

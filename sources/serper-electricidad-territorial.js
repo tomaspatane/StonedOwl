@@ -72,6 +72,7 @@ export function buildTerritorialPlan({ barrios = null, now = new Date(), batchSi
 async function searchOne(item, span, apiKey, fetchImpl) {
   const response = await fetchImpl('https://google.serper.dev/search', {
     method: 'POST',
+    signal: AbortSignal.timeout(12000),
     headers: {
       'content-type': 'application/json',
       'X-API-KEY': apiKey

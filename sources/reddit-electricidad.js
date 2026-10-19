@@ -79,6 +79,7 @@ async function fetchOne(subreddit, span, fetchImpl) {
   url.searchParams.set('t', timeRange(span));
 
   const response = await fetchImpl(url.toString(), {
+    signal: AbortSignal.timeout(12000),
     headers: {
       accept: 'application/atom+xml, application/rss+xml, application/xml, text/xml, */*',
       'user-agent': 'StonedOwl/0.10 (public urban-signal research; contact via repository)'
@@ -86,6 +87,7 @@ async function fetchOne(subreddit, span, fetchImpl) {
   });
   const raw = await response.text();
   if (!response.ok) throw new Error(`Reddit r/${subreddit} HTTP ${response.status}: ${raw.slice(0, 160)}`);
+  if (!/<feed(?:\s|>)/i.test(raw) || !/<\/feed>/i.test(raw)) throw new Error('Reddit no devolvió un feed Atom válido');
   return { subreddit, url: url.toString(), articles: parseRedditAtom(raw, subreddit, span) };
 }
 

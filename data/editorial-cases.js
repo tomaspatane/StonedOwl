@@ -1,3 +1,4 @@
+import { parseEnreUpdatedAt } from './electricidad-trend.js';
 import { detectBarrios, normalizePlaceText } from './caba-barrios.js';
 import { evidenceDateStatus } from './electricidad-evidence.js';
 
@@ -29,8 +30,10 @@ export function buildEditorialCases({ signals = [], evaluations = [], now = Date
     const key = official ? `${url.href}|${barrios.join('|')}|${article.enreType}|${article.title}|${article.snippet}` : url.origin + url.pathname;
     if (seen.has(key)) return [];
     seen.add(key);
-    const dateStatus = official ? 'official_snapshot' : evidenceDateStatus(article.date, now, span);
-    const dated = official || dateStatus === 'recent';
+    const sourceTime = official ? parseEnreUpdatedAt(article.sourceUpdatedAt) : null;
+    const freshOfficial = official && sourceTime !== null && sourceTime <= now + 120000 && now - sourceTime <= 1800000;
+    const dateStatus = official ? (freshOfficial ? 'official_snapshot' : 'official_freshness_unverified') : evidenceDateStatus(article.date, now, span);
+    const dated = freshOfficial || (!official && dateStatus === 'recent');
     const pending = !accepted || !dated;
     return [{
       id: key, topic: 'Electricidad', barrios,
@@ -38,15 +41,15 @@ export function buildEditorialCases({ signals = [], evaluations = [], now = Date
       reportedFact: article.snippet || article.title || '',
       evidenceStatus: pending ? 'por_verificar' : 'fuente_identificada',
       evidenceLabel: pending ? 'Pista para verificar' : 'Documentado en una fuente',
-      evidence: [{ url: url.href, source: article.source || article.provider || url.hostname, date: article.date || null }],
+      evidence: [{ url: url.href, source: article.source || article.provider || url.hostname, date: article.date || null, sourceUpdatedAt: article.sourceUpdatedAt || null, provenance: article.provenance || null }],
       dateStatus, affectedUsers: official ? article.affectedUsers ?? null : null,
-      eventType: article.enreType === 'programado' ? 'programado' : 'reporte',
+      eventType: ['programado', 'programado_comunicado'].includes(article.enreType) ? 'programado' : 'reporte',
       responsibility: { operator: official ? article.company || null : null, government: null, status: 'por_verificar' },
-      question: article.enreType === 'programado'
+      question: ['programado', 'programado_comunicado'].includes(article.enreType)
         ? '¿Se informó a los usuarios y se cumplió el plazo anunciado?'
         : '¿Qué respuesta recibieron los afectados y qué solución se ofreció?',
       nextStep: pending ? 'Abrir la fuente y confirmar hecho, lugar y fecha antes de usarlo.' : 'Comprobar situación actual, respuesta del prestador y competencia de cada organismo.',
-      missing: ['Estado actual del incidente', 'Responsabilidad de gestión y respuesta documentada', ...(pending ? ['Lectura y verificación de la fuente original'] : [])],
+      missing: ['Estado actual del incidente', 'Responsabilidad de gestión y respuesta documentada', ...(pending ? ['Lectura y verificación de la fuente original'] : []), ...(official && !freshOfficial ? ['Fecha de actualización oficial completa y vigente'] : [])],
       trend: 'no_evaluada', readyToPublish: false
     }];
   });

@@ -31,13 +31,12 @@ jobs:
 
   live-source-smoke:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run live Google Web + ENRE probe
+      - name: Run live public sources + ENRE probe
         env:
           SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
         run: npm run smoke:electricidad

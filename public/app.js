@@ -57,6 +57,7 @@ function rowByBarrio(name) {
 }
 
 function fmtNumber(value) {
+  if (value === null || value === undefined) return 'Sin dato';
   return new Intl.NumberFormat('es-AR').format(Number(value) || 0);
 }
 
@@ -158,7 +159,7 @@ function renderHeader() {
   if ((coverage.serperWebRaw || 0) > 0 || (coverage.territorialRaw || 0) > 0) sources.push('Web');
   if ((coverage.redditRaw || 0) > 0) sources.push('Social');
   $('sourceCount').textContent = sources.length ? sources.join(' · ') : 'Sin señal';
-  $('systemState').textContent = currentData?.ok ? 'Operativo' : 'Parcial';
+  $('systemState').textContent = currentData?.captureHealth?.status === 'failed' ? 'Sin cobertura' : currentData?.ok ? 'Operativo' : 'Cobertura parcial';
   $('systemDot').className = `status-dot ${currentData?.ok ? 'live' : 'warn'}`;
 
   const territorial = coverage.territorialEnabled ? `${coverage.territorialBarrios?.length || 0} barrios en este barrido` : 'barrido territorial no activo';

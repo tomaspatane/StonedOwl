@@ -1,20 +1,17 @@
+import { compareElectricitySnapshots } from '../data/electricidad-trend.js';
+import { captureHealth, fetchWebElectricity, fetchCitizenElectricity } from '../sources/electricidad-capture.js';
 import { buildEditorialCases } from '../data/editorial-cases.js';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { fetchRedditElectricidad } from '../sources/reddit-electricidad.js';
-import { fetchSerperRedditElectricidad } from '../sources/serper-reddit.js';
-import { fetchSerperElectricidad } from '../sources/serper-electricidad.js';
-import { fetchSerperElectricidadTerritorial } from '../sources/serper-electricidad-territorial.js';
-import { fetchEnreElectricidad } from '../sources/enre-electricidad.js';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { fetchEnreElectricidad, isCabaEnreRecord } from '../sources/enre-electricidad.js';
 import { detectBarrios, findBarrioExact, resolveBarriosFromResult } from '../data/caba-barrios.js';
 import { classifyElectricEvidence } from '../data/electricidad-evidence.js';
 import { matchElectricSignals } from '../data/electricidad.js';
 
-const TERRITORIAL_PILOT = ['Flores', 'Caballito', 'Almagro', 'Villa Lugano', 'Villa Riachuelo', 'Constitución'];
 
 function summarizeGeneralSignal(article, sourceType = 'web') {
   const text = `${article.title || ''} ${article.snippet || ''}`.trim();
   const geo = resolveBarriosFromResult({ title: article.title || '', snippet: article.snippet || '' });
-  const classification = classifyElectricEvidence(article);
+  const classification = classifyElectricEvidence({ ...article, span });
   if (!classification.acceptedForBarrio) return null;
   const barrios = geo.barrios.filter((b) => b.name === classification.targetBarrio).map((b) => ({ name: b.name, comuna: b.comuna }));
   const signals = matchElectricSignals(text).filter((s) => !['entity', 'context'].includes(s.signalType));
@@ -22,6 +19,7 @@ function summarizeGeneralSignal(article, sourceType = 'web') {
   return {
     source: article.source,
     provider: article.provider,
+    provenance: article.provenance || null,
     sourceType,
     date: article.date,
     title: article.title,
@@ -47,7 +45,8 @@ function evaluateTerritorialArticle(article) {
     targetBarrio: article.targetBarrio || '',
     source: article.source || '',
     provider: article.provider || '',
-    date: article.date || ''
+    date: article.date || '',
+    span
   });
 
   if (!classification.acceptedForBarrio) return { article, classification, signal: null };
@@ -64,6 +63,7 @@ function evaluateTerritorialArticle(article) {
     signal: {
       source: article.source,
       provider: article.provider,
+    provenance: article.provenance || null,
       sourceType: 'territorial_web',
       date: article.date,
       title: article.title,
@@ -84,8 +84,9 @@ function evaluateTerritorialArticle(article) {
 }
 
 function summarizeOfficial(record) {
+  if (!isCabaEnreRecord(record)) return null;
   const exact = findBarrioExact(record.locality || '');
-  const matches = exact ? [exact] : detectBarrios(record.locality || '');
+  const matches = exact ? [exact] : [];
   const barrios = matches.map((b) => ({ name: b.name, comuna: b.comuna }));
   if (!barrios.length) return null;
   return {
@@ -93,6 +94,7 @@ function summarizeOfficial(record) {
     provider: record.provider,
     sourceType: 'official',
     date: record.date,
+    sourceUpdatedAt: record.sourceUpdatedAt || null,
     title: record.title,
     snippet: record.snippet || '',
     url: record.url,
@@ -111,24 +113,11 @@ function summarizeOfficial(record) {
   };
 }
 
-async function fetchCitizenSource() {
-  if (process.env.SERPER_API_KEY) {
-    const result = await fetchSerperRedditElectricidad('1d', process.env.SERPER_API_KEY);
-    return { ...result, mode: 'google-web-reddit' };
-  }
-  const result = await fetchRedditElectricidad('1d');
-  return { ...result, mode: 'direct-reddit-fallback' };
-}
-
-async function fetchGeneralWebSource() {
-  if (!process.env.SERPER_API_KEY) return { articles: [], diagnostics: { disabled: true }, queries: [], disabled: true };
-  return fetchSerperElectricidad('1d', process.env.SERPER_API_KEY);
-}
-
-async function fetchTerritorialWebSource() {
-  if (!process.env.SERPER_API_KEY) return { articles: [], diagnostics: { disabled: true }, plan: { barrios: [], queryCount: 0 }, disabled: true };
-  return fetchSerperElectricidadTerritorial('1d', process.env.SERPER_API_KEY, { barrios: TERRITORIAL_PILOT });
-}
+const span = ['6h', '1d', '3d', '1w'].includes(process.env.CAPTURE_SPAN) ? process.env.CAPTURE_SPAN : '1w';
+const fetchCitizenSource = () => fetchCitizenElectricity(span, process.env.SERPER_API_KEY || '');
+const fetchGeneralWebSource = () => fetchWebElectricity(span, process.env.SERPER_API_KEY || '');
+// Rotate all 48 neighborhoods instead of permanently sampling the same six.
+const fetchTerritorialWebSource = () => fetchWebElectricity(span, process.env.SERPER_API_KEY || '', { territorial: true, batchSize: 12 });
 
 const startedAt = new Date().toISOString();
 const [redditResult, webResult, territorialResult, enreResult] = await Promise.allSettled([
@@ -240,10 +229,14 @@ const qualityCounts = territorialEvaluations.reduce((acc, item) => {
   return acc;
 }, {});
 
+const health = captureHealth({ reddit, web, territorial, enre });
 const report = {
-  ok: redditResult.status === 'fulfilled' || webResult.status === 'fulfilled' || territorialResult.status === 'fulfilled' || enreResult.status === 'fulfilled',
-  version: 'live-smoke-v9-editorial-cases',
+  ok: health.status === 'healthy',
+  captureUsable: health.usable,
+  coverage: health,
+  version: 'live-smoke-v10-free-capture-health',
   startedAt,
+  span,
   finishedAt: new Date().toISOString(),
   sourceHealth: {
     reddit: { mode: reddit.mode || null, diagnostics: reddit.diagnostics },
@@ -266,7 +259,7 @@ const report = {
     enreCaba: officialSignals.length,
     barriosWithSignal: radar.length
   },
-  editorialCases: buildEditorialCases({ signals: [...citizenSignals, ...webSignals, ...territorialSignals, ...officialSignals], evaluations: territorialEvaluations }),
+  editorialCases: buildEditorialCases({ signals: [...citizenSignals, ...webSignals, ...territorialSignals, ...officialSignals], evaluations: territorialEvaluations, span }),
   territorialEvidenceQuality: qualityCounts,
   radar,
   citizenSignals: citizenSignals.slice(0, 30),
@@ -276,14 +269,24 @@ const report = {
   territorialRejectedSample,
   territorialReviewCandidates,
   territorialEvaluations: territorialEvaluations.map(({ article, classification }) => ({ article, classification })),
-  officialSignals: officialSignals.slice(0, 50)
+  officialSignals
 };
 
+let previous = null;
+let previousReportError = null;
+if (process.env.PREVIOUS_REPORT) {
+  try { previous = JSON.parse(await readFile(process.env.PREVIOUS_REPORT, 'utf8')); }
+  catch (error) { previousReportError = String(error?.message || error); }
+}
+report.snapshotComparison = compareElectricitySnapshots({ current: report, previous });
+if (previousReportError) report.snapshotComparison.inputError = previousReportError;
+// Case-level trend remains unknown: snapshot deltas are not incident resolution
+// or complaint prevalence. Expose the bounded metric separately for review.
 await mkdir('tmp', { recursive: true });
 await writeFile('tmp/live-electricidad-report.json', JSON.stringify(report, null, 2), 'utf8');
 console.log(JSON.stringify(report, null, 2));
 
-if (redditResult.status === 'rejected' && webResult.status === 'rejected' && territorialResult.status === 'rejected' && enreResult.status === 'rejected') {
+if (!report.ok) {
   process.exitCode = 1;
 }
 
