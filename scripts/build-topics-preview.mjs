@@ -18,7 +18,7 @@ window.fetch = async function(input) {
   data.editorialCases = data.editorialCases.filter(item => Date.parse(data.fetchedAt) - Date.parse(item.publicationDate) <= windows[span]);
   return { ok: true, json: async () => data };
 };`;
-const banner = `<div style="padding:14px 26px;background:#422006;color:#fef3c7;font:14px system-ui">Vista local de la ampliación · captura ${report.fetchedAt} · datos congelados, no estado en vivo. Actualizar sólo reaplica esta captura; no consulta fuentes. No publicada ni incorporada al monitoreo horario. Electricidad no está incluida en este archivo de vista previa.</div>`;
+const banner = `<div style="padding:14px 26px;background:#422006;color:#fef3c7;font:14px system-ui">Archivo local de la ampliación · captura ${report.fetchedAt} · datos congelados, no estado en vivo. Actualizar sólo reaplica esta captura; no consulta fuentes. Este archivo no forma parte del monitoreo horario. Electricidad no está incluida en este archivo de vista previa.</div>`;
 const output = html.replace('<link rel="stylesheet" href="style.css">', `<style>${css}</style>`)
   .replace('<body>', `<body>${banner}`)
   .replace('<option value="transporte">', '<option value="transporte" selected>')

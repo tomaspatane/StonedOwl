@@ -6,5 +6,6 @@
 .editorial-card h3 { font-size: 18px; margin: 10px 0; }
 .editorial-card p { font-size: 14px; line-height: 1.5; }
 .editorial-card a { color: #67e8f9; }
+.topic-coverage { color: #a8b6c1; font-size: 13px; line-height: 1.5; padding: 14px 20px; }
 
 [hidden] { display: none !important; }

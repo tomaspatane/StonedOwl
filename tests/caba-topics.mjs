@@ -25,6 +25,29 @@ assert.equal(topicGeography(item('Un porteño sufrió un robo en Chile'), 'segur
 assert.equal(topicGeography(item('Paro en todas las líneas del subte'), 'transporte').scope, 'network');
 assert.equal(topicGeography(item('El metro de Madrid tuvo un paro'), 'transporte').accepted, false);
 assert.deepEqual(topicGeography(item('Una falla en la estación Constitución del subte'), 'transporte').barrios, [], 'Station does not establish barrio');
+const multi = classify('Detuvieron a dos prófugos por abuso sexual en Flores y Balvanera', 'seguridad');
+assert.deepEqual(multi.case.barrios, ['Flores', 'Balvanera'], 'Coordinated barrio names remain available to both comuna filters');
+assert.equal(multi.case.location.scope, 'multi_location');
+assert.match(multi.case.location.label, /múltiples ubicaciones/);
+assert.match(multi.case.reportedFact, /ubicación de cada actuación o etapa no está verificada/);
+assert.doesNotMatch(multi.case.title, /causas previas en Flores/);
+assert.equal(multi.case.confidence.level, 'baja', 'Multiple locations do not confirm the location of each act');
+const route = classify('Detuvieron a dos jóvenes que circulaban en una moto robada tras una persecución entre Flores y Barracas', 'seguridad',
+  'El procedimiento comenzó durante un control preventivo en Flores y terminó en el Barrio Zavaleta. Los detenidos tienen 17 y 18 años.');
+assert.deepEqual(route.case.barrios, ['Flores', 'Barracas']);
+assert.equal(route.case.location.scope, 'route');
+assert.match(route.case.title, /Recorrido entre Flores y Barracas/);
+assert.match(route.case.reportedFact, /recorrido entre Flores y Barracas/);
+assert.match(route.case.location.label, /ubicación de cada etapa por verificar/);
+assert.doesNotMatch(route.case.reportedFact, /17|18|Zavaleta/);
+assert.deepEqual(topicGeography(item('Robo en los barrios de Parque Avellaneda y Villa Urquiza'), 'seguridad').barrios, ['Parque Avellaneda', 'Villa Urquiza']);
+for (const title of ['Robo en Flores y Palermo, Sicilia', 'Robo entre Flores y Barracas en Chile', 'Robo en las calles Flores y Balvanera', 'Robo entre las estaciones Flores y Barracas', 'Flores y Balvanera: un robo sin ubicación verificada', 'Robo entre Once y Devoto']) {
+  assert.equal(topicGeography(item(title), 'seguridad').accepted, false, title);
+}
+assert.deepEqual(topicGeography(item('Robo en Flores; Balvanera organiza una feria'), 'seguridad').barrios, ['Flores'], 'Unanchored mentions outside the coordinated list are not added');
+assert.equal(topicGeography(item('Robo en Flores y Balvanera', 'El hecho ocurrió en Chile'), 'seguridad').accepted, false, 'Foreign snippet context still vetoes a coordinated match');
+assert.equal(topicGeography(item('Robo en Flores, Balvanera y Palermo'), 'seguridad').accepted, false, 'Existing limit on ambiguous multi-location reports is preserved');
+assert.equal(topicGeography(item('Robo en Flores, Balvanera y Palermo, CABA'), 'seguridad').scope, 'citywide');
 
 const base = classify('Basura acumulada en Almagro', 'basura');
 assert.equal(base.accepted, true);

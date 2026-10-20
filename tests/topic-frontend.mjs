@@ -23,6 +23,9 @@ assert.equal(pending[0].options.signal.aborted, true);
 pending[1].resolve({ ok: true, json: async () => data('basura', 'Caso de basura') });
 await flush();
 assert.match(node('editorialCases').innerHTML, /Caso de basura/);
+assert.match(node('editorialCases').innerHTML, /Publicado: 20\/10\/2026/);
+assert.match(node('updatedAt').textContent, /20\/10\/2026.*11:00.*ART/);
+assert.equal(node('topicCoverage').hidden, false);
 assert.equal(node('.dashboard').hidden, true);
 assert.equal(node('statusFilter').disabled, true);
 pending[0].resolve({ ok: true, json: async () => data('electricidad', 'Respuesta vieja') });
@@ -47,8 +50,26 @@ assert.equal(node('statusFilter').disabled, false);
 assert.match(node('editorialCases').innerHTML, /&lt;script&gt;/);
 assert.doesNotMatch(node('editorialCases').innerHTML, /<script>/);
 assert.equal(node('refreshBtn').disabled, false);
+assert.equal(node('topicCoverage').hidden, true);
+node('problemFilter').value = 'basura';
+node('problemFilter').onchange();
+pending[4].resolve({ ok: true, json: async () => ({
+  ...data('basura', 'Cobertura parcial'),
+  ok: false, coverage: { successful: 2, failed: 1 },
+  sourceHealth: [
+    { publisher: 'Medio A', status: 'stale' },
+    { publisher: 'Medio B', status: 'failed' },
+    { publisher: 'Medio C', status: 'undated' }
+  ]
+}) });
+await flush();
+assert.match(node('topicCoverage').textContent, /2 consultas respondieron, 1 fallaron/);
+assert.match(node('topicCoverage').textContent, /Medio A: sin publicaciones dentro/);
+assert.match(node('topicCoverage').textContent, /Medio B: no se pudo consultar/);
+assert.match(node('topicCoverage').textContent, /Medio C: sin fechas utilizables/);
 const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
 assert.equal((html.match(/id="refreshBtn"/g) || []).length, 1);
 assert.ok(html.indexOf('id="refreshBtn"') < html.indexOf('<main class="dashboard"'), 'Refresh remains available when the map is hidden');
+assert.ok(html.indexOf('id="problemFilter"') < html.indexOf('id="editorialCases"'), 'Topic switcher remains above long case lists');
 assert.match(await readFile(new URL('../public/style.css', import.meta.url), 'utf8'), /\[hidden\]\s*\{\s*display:\s*none !important/);
 console.log('Topic frontend: changing filters during requests, stale responses, failures, escaping and electricity restoration OK');

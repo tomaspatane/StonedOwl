@@ -66,15 +66,19 @@ function fmtNumber(value) {
 }
 
 function fmtUpdated(value) {
+  if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  return `${date.toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} ART`;
 }
 
 function fmtEvidenceDate(value) {
+  if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  // A date-only value has no timezone or time of day to convert.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value.split('-').reverse().join('/');
+  return `${date.toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} ART`;
 }
 
 function rowStatus(row) {
@@ -171,6 +175,13 @@ function renderHeader() {
   $('coverageNote').textContent = topic === 'electricidad' ? `Piloto Electricidad · ${territorial}` : `${topicLabels[topic]} · cobertura parcial de publicaciones, no relevamiento exhaustivo`;
   document.querySelector('.dashboard').hidden = topic !== 'electricidad';
   $('statusFilter').disabled = topic !== 'electricidad';
+  const topicCoverage = $('topicCoverage');
+  topicCoverage.hidden = topic === 'electricidad' || !currentData;
+  const problemLabels = { failed: 'no se pudo consultar', stale: 'sin publicaciones dentro de la ventana elegida', undated: 'sin fechas utilizables' };
+  const issues = (Array.isArray(currentData?.sourceHealth) ? currentData.sourceHealth : [])
+    .filter(source => problemLabels[source.status])
+    .map(source => `${source.publisher}: ${problemLabels[source.status]}`);
+  topicCoverage.textContent = `Cobertura de ${topicLabels[topic]}: ${Number(coverage.successful) || 0} consultas respondieron, ${Number(coverage.failed) || 0} fallaron. ${[...new Set(issues)].join('; ')}${issues.length ? '. ' : ''}Fuentes limitadas; no mide todos los reclamos ni la situación actual del servicio.`;
 }
 
 function renderEditorialCases() {
@@ -186,7 +197,7 @@ function renderEditorialCases() {
       let url;
       try { url = new URL(source.url); } catch { return ''; }
       if (!['http:', 'https:'].includes(url.protocol)) return '';
-      return `<a href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">${esc(source.source)}</a> · ${esc(source.date || 'Sin fecha')}`;
+      return `<a href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">${esc(source.source)}</a> · Publicado: ${esc(fmtEvidenceDate(source.date) || 'Sin fecha')}`;
     }).join('<br>');
     const statusLabels = { versiones_en_conflicto: 'Versiones en conflicto; revisar la fuente', cancelado_segun_fuente: 'Medida cancelada según la fuente, no informar como activa', resuelto_segun_fuente: 'La fuente informa normalización, verificar estado actual', anunciado_no_verificado: 'Anunciado; vigencia no verificada', reportado_no_verificado: 'Reportado; estado actual no verificado' };
     const detail = item.topicId ? `<p><strong>Estado:</strong> ${esc(statusLabels[item.reportedStatus] || 'No verificado')}. Fecha del hecho: ${esc(item.incidentDate || 'no verificada')}. Confianza en la ubicación del reporte: ${esc(item.confidence?.level || 'baja')}; no confirma el hecho.</p><p>Lectura de título y resumen RSS. Tendencia desconocida; sin historial comparable.</p>` : '';

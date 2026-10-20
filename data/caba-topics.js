@@ -14,6 +14,11 @@ const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const word = (text, phrase) => new RegExp(`(^|[^a-z0-9])${escape(normalize(phrase))}([^a-z0-9]|$)`).test(text);
 const CABA = /\bcaba\b|\bcapital federal\b|\bciudad (?:autonoma )?de buenos aires\b/;
 const OUTSIDE = /\b(?:espana|italia|sicilia|roma|madrid|barcelona|miami|nueva york|francia|alemania|chile|uruguay|brasil|paraguay|bolivia|colombia|peru|mexico|provincia de buenos aires|conurbano|la plata|mar del plata|rosario|mendoza|cordoba|san juan|tucuman|la matanza|moron|quilmes|lanus|avellaneda|san isidro|san martin|tigre|san fernando|berazategui|florencio varela|lomas de zamora|merlo|moreno|ezeiza|escobar|pilar|vicente lopez)\b/;
+const barrioNames = barrio => [barrio.name, ...(barrio.aliases || []).filter(name => !['Boca', 'Once', 'Urquiza', 'Devoto'].includes(name))];
+const barrioByName = new Map(CABA_BARRIOS.flatMap(barrio => barrioNames(barrio).map(name => [normalize(name), barrio.name])));
+const barrioPattern = [...barrioByName.keys()].sort((a, b) => b.length - a.length).map(escape).join('|');
+const locationJoiner = '(?:\\s*,\\s*(?:(?:y|e)\\s+)?|\\s+(?:y|e)\\s+)';
+const locationToken = `(?:${barrioPattern})(?![a-z0-9])`;
 // Do not assign barrios from names, football clubs, streets, station terminals or
 // words such as "once" and "retiro". Named locations need a locative construction.
 export function topicGeography(article = {}, topic) {
@@ -25,17 +30,30 @@ export function topicGeography(article = {}, topic) {
   const outsideTitle = OUTSIDE.test(withoutCabaNames(title));
   const outsideText = OUTSIDE.test(withoutCabaNames(text));
   if (outsideTitle) return { accepted: false, barrios: [], reason: 'conflicting_non_caba_title' };
+  const entityMention = name => new RegExp(`(?:calle|avenida|av\\.?|estacion|terminal|club|hospital)\\s+${escape(normalize(name))}(?![a-z0-9])`).test(text);
   const barrios = CABA_BARRIOS.filter(barrio => {
-    const names = [barrio.name, ...(barrio.aliases || []).filter(name => !['Boca', 'Once', 'Urquiza', 'Devoto'].includes(name))];
-    return names.some(name => {
+    return barrioNames(barrio).some(name => {
       const n = escape(normalize(name));
       const re = new RegExp(`(?:\\ben (?:el barrio (?:porteno )?de )?|\\bbarrio (?:porteno )?de |\\bvecinos de |\\bzona de )${n}(?![a-z0-9])`);
-      return re.test(text) && !new RegExp(`(?:calle|avenida|av\\.?|estacion|terminal|club|hospital)\\s+${n}(?![a-z0-9])`).test(text);
+      return re.test(text) && !entityMention(name);
     });
   });
+  // Only extend an explicit locative with adjacent, coordinated barrio names.
+  // "Entre" describes a route, not where each stage or arrest happened.
+  const coordinated = new RegExp(`\\b(en (?:(?:el barrio|los barrios) (?:portenos? )?de )?|barrios? (?:portenos? )?de |vecinos de |zona de |entre )(${locationToken}(?:${locationJoiner}${locationToken})+)`, 'g');
+  const coordinatedNames = [];
+  let route = false;
+  for (const match of text.matchAll(coordinated)) {
+    const names = match[2].split(new RegExp(locationJoiner));
+    if (names.some(entityMention)) continue;
+    coordinatedNames.push(...names.map(name => barrioByName.get(name)));
+    if (match[1] === 'entre ') route = true;
+  }
+  const locations = [...new Set([...coordinatedNames, ...barrios.map(b => b.name)])];
   if (outsideText) return { accepted: false, barrios: [], reason: 'conflicting_non_caba_context' };
-  if (barrios.length > 2) return hasCity ? { accepted: true, barrios: [], scope: 'citywide', reason: 'multiple_locations_not_attributed' } : { accepted: false, barrios: [], reason: 'ambiguous_geography' };
-  if (barrios.length) return { accepted: true, barrios: barrios.map(b => b.name), scope: 'barrio', reason: 'explicit_locative_barrio' };
+  if (locations.length > 2) return hasCity ? { accepted: true, barrios: [], scope: 'citywide', reason: 'multiple_locations_not_attributed' } : { accepted: false, barrios: [], reason: 'ambiguous_geography' };
+  if (locations.length > 1) return { accepted: true, barrios: locations, scope: route ? 'route' : 'multi_location', reason: route ? 'explicit_barrio_route_stages_unverified' : 'explicit_multiple_locations_attribution_unverified' };
+  if (locations.length) return { accepted: true, barrios: locations, scope: 'barrio', reason: 'explicit_locative_barrio' };
   if (hasCity) return { accepted: true, barrios: [], scope: 'citywide', reason: 'explicit_caba_marker' };
   // The Buenos Aires Subte/Premetro network is inherently in CABA; do not assign
   // every barrio along a line or infer station-to-barrio mappings from names.
@@ -112,7 +130,11 @@ export function classifyTopicArticle(article, topic, { now = Date.now(), span = 
   const geography = topicGeography(article, topic);
   if (!geography.accepted) return { accepted: false, reason: geography.reason };
   const status = reportedStatus(topic, text);
-  const place = geography.barrios.length ? geography.barrios.join(', ') : geography.scope === 'network' ? 'Red de subte de CABA; alcance exacto por verificar' : 'CABA; lugar exacto por verificar';
+  const multipleLocations = ['route', 'multi_location'].includes(geography.scope);
+  const locationNames = geography.barrios.join(' y ');
+  const place = geography.scope === 'route' ? `Recorrido entre ${locationNames}; ubicación de cada etapa por verificar`
+    : geography.scope === 'multi_location' ? `${locationNames}; múltiples ubicaciones, atribución de cada actuación por verificar`
+    : geography.barrios.length ? geography.barrios.join(', ') : geography.scope === 'network' ? 'Red de subte de CABA; alcance exacto por verificar' : 'CABA; lugar exacto por verificar';
   const agency = publicAgencyMention(text, topic);
   const security = topic === 'seguridad';
   const securitySubject = signal.type === 'actuacion_policial' ? 'actuación policial' : signal.type === 'robo' ? 'robo' : signal.type === 'violencia' ? 'hecho violento' : 'seguridad';
@@ -120,9 +142,12 @@ export function classifyTopicArticle(article, topic, { now = Date.now(), span = 
     : /\bmoto(?:cicleta)? robada\b/.test(text) ? 'procedimiento por una moto reportada como robada'
     : /\bdesalojo\b/.test(text) ? 'desalojo vinculado a denuncias vecinales'
     : /\bprofugos?\b/.test(text) ? 'detenciones vinculadas a causas previas' : securitySubject;
-  const safeTitle = security ? `Reporte de ${securityContext} en ${place}` : article.title;
+  const safeTitle = security ? `Reporte de ${securityContext}${multipleLocations ? `: ${place}` : ` en ${place}`}` : article.title;
   const originalSummary = (article.snippet?.length > 35 ? article.snippet : article.title || '').split(/Continuar leyendo en/i)[0].trim().slice(0, 320);
-  const reportedFact = security ? `La fuente publica un reporte de ${securityContext} en ${place}. No confirma un nuevo delito, culpabilidad ni una tendencia barrial.` : originalSummary;
+  const locationContext = multipleLocations
+    ? `con referencias a ${geography.scope === 'route' ? 'un recorrido entre ' : ''}${locationNames}. La ubicación de cada actuación o etapa no está verificada`
+    : `en ${place}`;
+  const reportedFact = security ? `La fuente publica un reporte de ${securityContext} ${locationContext}. No confirma un nuevo delito, culpabilidad ni una tendencia barrial.` : originalSummary;
   const sharedStrike = topic === 'transporte' && /\bparo\b/.test(text) && /\b(?:subtes?|premetro)\b/.test(text) && /\b(?:detencion|detenidos|detenidos?|arrestar)\b/.test(text) && !/\blinea [abcdeh]\b/.test(text);
   const duplicateKey = sharedStrike ? `subte_network_strike_detainees|${article.date.slice(0, 10)}|${status}` : `${normalize(article.title)}|${geography.barrios.join('|')}|${article.date.slice(0, 10)}`;
   return { accepted: true, reason: 'dated_caba_source', case: {
