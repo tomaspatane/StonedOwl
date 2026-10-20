@@ -69,7 +69,7 @@ function fmtUpdated(value) {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return `${date.toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} ART`;
+  return `${date.toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })} ART`;
 }
 
 function fmtEvidenceDate(value) {
@@ -200,7 +200,7 @@ function renderEditorialCases() {
       return `<a href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">${esc(source.source)}</a> · Publicado: ${esc(fmtEvidenceDate(source.date) || 'Sin fecha')}`;
     }).join('<br>');
     const statusLabels = { versiones_en_conflicto: 'Versiones en conflicto; revisar la fuente', cancelado_segun_fuente: 'Medida cancelada según la fuente, no informar como activa', resuelto_segun_fuente: 'La fuente informa normalización, verificar estado actual', anunciado_no_verificado: 'Anunciado; vigencia no verificada', reportado_no_verificado: 'Reportado; estado actual no verificado' };
-    const detail = item.topicId ? `<p><strong>Estado:</strong> ${esc(statusLabels[item.reportedStatus] || 'No verificado')}. Fecha del hecho: ${esc(item.incidentDate || 'no verificada')}. Confianza en la ubicación del reporte: ${esc(item.confidence?.level || 'baja')}; no confirma el hecho.</p><p>Lectura de título y resumen RSS. Tendencia desconocida; sin historial comparable.</p>` : '';
+    const detail = item.topicId ? `<p><strong>Estado:</strong> ${esc(statusLabels[item.reportedStatus] || 'No verificado')}. Fecha del hecho: ${esc(item.incidentDate || 'no verificada')}. Confianza en la ubicación del reporte: ${esc(item.confidence?.level || 'baja')}; no confirma el hecho.</p><p>Lectura de título y resumen RSS. Tendencia de incidentes desconocida; sin historial comparable de incidentes.</p>` : '';
     return `<article class="editorial-card"><small>${esc(item.evidenceLabel)} · ${esc(item.location?.label || item.barrios.join(', '))}</small><h3>${esc(item.title)}</h3><p>${esc(item.reportedFact)}</p><p>${links}</p>${detail}<p><strong>Pregunta a investigar:</strong> ${esc(item.question)}</p><p><strong>Responsabilidad:</strong> ${esc(item.responsibility.operator || 'Prestador por verificar')}; ${esc(item.responsibility.government || 'competencia por verificar')}. Respuesta oficial del caso no verificada.</p><p><strong>Siguiente paso:</strong> ${esc(item.nextStep)}</p></article>`;
   }).join('') : '<div class="empty-state">Sin casos recuperados en esta captura para la comuna elegida. No implica ausencia de problemas.</div>';
 }
@@ -208,8 +208,39 @@ function renderEditorialCases() {
 function renderAll() {
   renderEditorialCases();
   renderHeader();
+  renderTopicHistory();
   renderMap();
   renderAlerts();
+}
+
+function renderTopicHistory() {
+  const element = $('topicHistory');
+  element.hidden = selectedTopic() === 'electricidad' || !currentData;
+  if (element.hidden) { element.innerHTML = ''; return; }
+  if (!currentData.history?.persisted) {
+    element.innerHTML = '<strong>Historial:</strong> esta consulta no se guardó en un historial. Sin comparación persistida; no se infiere crecimiento de problemas.';
+    return;
+  }
+  const comparison = currentData.snapshotComparison;
+  const reasons = comparison?.reasons || [];
+  const issue = reasons.includes('coverage_changed') ? 'Cambió la cobertura de fuentes.'
+    : reasons.includes('unusable_feed_coverage') ? 'Hay fuentes fallidas o sin fechas utilizables.'
+    : reasons.some(r => r.includes('missing_snapshot')) ? 'No hay captura anterior verificada.'
+    : reasons.includes('preview_window_filter') ? 'La ventana elegida no coincide con la comparación guardada.'
+    : reasons.some(r => r.includes('interval')) ? 'El intervalo entre capturas no es comparable.'
+    : reasons.some(r => r.includes('analysis') || r.includes('schema')) ? 'Cambió la versión del análisis.'
+    : reasons.length ? 'Fechas, configuración o datos no permiten comparar.' : '';
+  const dates = `<strong>Captura guardada:</strong> ${esc(fmtUpdated(currentData.fetchedAt))}. <strong>Anterior:</strong> ${esc(fmtUpdated(comparison?.previousCapturedAt))}.`;
+  if ($('comunaFilter').value !== 'all') {
+    element.innerHTML = `${dates}<p>La comparación guardada abarca el tema completo en CABA, no esta comuna. Seleccioná Todas para verla. No mide crecimiento de problemas.</p>`;
+    return;
+  }
+  if (!comparison?.eligible || !comparison.counts) {
+    element.innerHTML = `${dates}<p><strong>No comparable.</strong> ${esc(issue || 'Sin comparación guardada.')} Tendencia de problemas: desconocida.</p>`;
+    return;
+  }
+  const c = comparison.counts;
+  element.innerHTML = `${dates}<p><strong>${comparison.status === 'partial' ? 'Comparación parcial de publicaciones' : 'Inventarios de publicaciones comparables'}.</strong> ${esc(c.previousPublications)} antes y ${esc(c.currentPublications)} ahora; ${esc(c.addedSincePrevious)} incorporadas, ${esc(c.retained)} presentes en ambas, ${esc(c.notObserved)} no recuperadas y ${esc(c.outsideWindow)} fuera de ventana. ${esc(c.updated)} con cambios en los datos o agrupación del reporte.</p><p>Incorporada significa ausente de la captura anterior, no un hecho nuevo. Una ausencia no confirma resolución. Esto no mide incidentes ni crecimiento de problemas.</p>`;
 }
 
 function evidenceHtml(row) {

@@ -16,6 +16,7 @@ window.fetch = async function(input) {
   const span = url.searchParams.get('span') || '1w';
   const windows = { '1d': 86400000, '3d': 259200000, '1w': 604800000 };
   data.editorialCases = data.editorialCases.filter(item => Date.parse(data.fetchedAt) - Date.parse(item.publicationDate) <= windows[span]);
+  if (span !== source.span && data.snapshotComparison) data.snapshotComparison = { ...data.snapshotComparison, status: 'unknown', eligible: false, counts: null, changes: null, reasons: ['preview_window_filter'] };
   return { ok: true, json: async () => data };
 };`;
 const banner = `<div style="padding:14px 26px;background:#422006;color:#fef3c7;font:14px system-ui">Archivo local de la ampliación · captura ${report.fetchedAt} · datos congelados, no estado en vivo. Actualizar sólo reaplica esta captura; no consulta fuentes. Este archivo no forma parte del monitoreo horario. Electricidad no está incluida en este archivo de vista previa.</div>`;

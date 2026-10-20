@@ -1,5 +1,6 @@
 import { parsePublisherRss, readPublisherFeed } from './free-electricidad.js';
 import { TOPICS, CAPTURE_WINDOWS, topicSignal, buildTopicCases } from '../data/caba-topics.js';
+import { TOPIC_SNAPSHOT_SCHEMA, TOPIC_ANALYSIS_VERSION } from '../data/caba-topic-history.js';
 
 // Publisher-owned discovery feeds only. No paid search, account or API key.
 // Search matches article bodies upstream, but our filter uses only RSS title and
@@ -47,29 +48,31 @@ export async function captureTopic(topic, { span = '1w', now = Date.now(), feeds
     successfulPublishers: [...new Set(diagnostics.filter(item => item.ok).map(item => item.publisher))],
     interpretation: 'Salud de consulta a las fuentes configuradas, no cobertura exhaustiva ni ausencia de problemas.' };
   return {
-    ok: status === 'healthy', captureUsable: health.usable, version: 'caba-topics-v1', topicId: topic, topic: TOPICS[topic].label,
+    ok: status === 'healthy', captureUsable: health.usable, version: 'caba-topics-v1', snapshotSchema: TOPIC_SNAPSHOT_SCHEMA, analysisVersion: TOPIC_ANALYSIS_VERSION, topicId: topic, topic: TOPICS[topic].label,
     span, fetchedAt: new Date(nowMs).toISOString(), captureHealth: health, coverage: health,
     sourceHealth: diagnostics, counts: result.diagnostics, editorialCases: result.editorialCases,
     radar: [], thermometer: { status: 'not_calibrated', reason: 'Estos temas no convierten reportes aislados en colores ni zonas peligrosas.' },
     trend: { status: 'unknown', reason: 'sin_historial_comparable_de_incidentes', comparableSnapshots: 0 },
+    history: { persisted: false, reason: 'request_only_no_history_store' },
     limitations: [
       'Fuentes limitadas y no exhaustivas; no es un relevamiento de todos los reclamos ni de todos los barrios.',
       'Se lee únicamente título y resumen RSS. La fecha de publicación no confirma fecha ni vigencia del hecho.',
       'Una fuente identificada no confirma el hecho. No se infiere independencia entre medios que repiten un comunicado.',
       'Las respuestas oficiales y la responsabilidad del caso requieren verificación. No se asigna culpabilidad.',
       'Una noticia republicada sin indicación temporal explícita puede requerir descarte tras leer su fuente.',
-      'Sin historial comparable, tendencia desconocida. Sin calibración, no se generan alertas territoriales.'
+      'Sin historial comparable de incidentes, tendencia desconocida. Sin calibración, no se generan alertas territoriales.'
     ]
   };
 }
 
 export async function captureAllTopics(options = {}, fetchImpl = fetch) {
-  const results = await Promise.all(Object.keys(TOPICS).map(async topic => [topic, await captureTopic(topic, options, fetchImpl)]));
+  const now = options.now ?? Date.now();
+  const results = await Promise.all(Object.keys(TOPICS).map(async topic => [topic, await captureTopic(topic, { ...options, now }, fetchImpl)]));
   const topics = Object.fromEntries(results);
   const all = Object.values(topics);
   const status = all.every(item => item.ok) ? 'healthy' : all.some(item => item.captureUsable) ? 'degraded' : 'failed';
-  return { ok: status === 'healthy', captureUsable: all.some(item => item.captureUsable), version: 'caba-topics-v1',
-    fetchedAt: new Date().toISOString(), captureHealth: { status }, topics,
+  return { ok: status === 'healthy', captureUsable: all.some(item => item.captureUsable), version: 'caba-topics-v1', snapshotSchema: TOPIC_SNAPSHOT_SCHEMA, analysisVersion: TOPIC_ANALYSIS_VERSION,
+    fetchedAt: all[0].fetchedAt, span: all[0].span, captureHealth: { status }, topics, history: { persisted: false, reason: 'request_only_no_history_store' },
     editorialCases: all.flatMap(item => item.editorialCases),
     trend: { status: 'unknown', reason: 'sin_historial_comparable_de_incidentes' } };
 }

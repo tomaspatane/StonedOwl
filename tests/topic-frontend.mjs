@@ -26,6 +26,7 @@ assert.match(node('editorialCases').innerHTML, /Caso de basura/);
 assert.match(node('editorialCases').innerHTML, /Publicado: 20\/10\/2026/);
 assert.match(node('updatedAt').textContent, /20\/10\/2026.*11:00.*ART/);
 assert.equal(node('topicCoverage').hidden, false);
+assert.match(node('topicHistory').innerHTML, /no se guardó en un historial/);
 assert.equal(node('.dashboard').hidden, true);
 assert.equal(node('statusFilter').disabled, true);
 pending[0].resolve({ ok: true, json: async () => data('electricidad', 'Respuesta vieja') });
@@ -51,6 +52,7 @@ assert.match(node('editorialCases').innerHTML, /&lt;script&gt;/);
 assert.doesNotMatch(node('editorialCases').innerHTML, /<script>/);
 assert.equal(node('refreshBtn').disabled, false);
 assert.equal(node('topicCoverage').hidden, true);
+assert.equal(node('topicHistory').hidden, true);
 node('problemFilter').value = 'basura';
 node('problemFilter').onchange();
 pending[4].resolve({ ok: true, json: async () => ({
@@ -67,6 +69,25 @@ assert.match(node('topicCoverage').textContent, /2 consultas respondieron, 1 fal
 assert.match(node('topicCoverage').textContent, /Medio A: sin publicaciones dentro/);
 assert.match(node('topicCoverage').textContent, /Medio B: no se pudo consultar/);
 assert.match(node('topicCoverage').textContent, /Medio C: sin fechas utilizables/);
+node('problemFilter').onchange();
+pending[5].resolve({ ok: true, json: async () => ({
+  ...data('basura', 'Historial'), history: { persisted: true },
+  snapshotComparison: { eligible: true, status: 'partial', previousCapturedAt: '2026-10-20T13:00:00Z', counts: { previousPublications: 2, currentPublications: 3, addedSincePrevious: 1, retained: 2, notObserved: 0, outsideWindow: 0, updated: 0 } }
+}) });
+await flush();
+assert.match(node('topicHistory').innerHTML, /Captura guardada/);
+assert.match(node('topicHistory').innerHTML, /Comparación parcial/);
+assert.match(node('topicHistory').innerHTML, /2 antes y 3 ahora/);
+assert.match(node('topicHistory').innerHTML, /no mide incidentes ni crecimiento/);
+node('comunaFilter').value = '3'; node('comunaFilter').onchange();
+assert.match(node('topicHistory').innerHTML, /no esta comuna/);
+assert.doesNotMatch(node('topicHistory').innerHTML, /2 antes y 3 ahora/);
+node('comunaFilter').value = 'all'; node('problemFilter').onchange();
+pending[6].resolve({ ok: true, json: async () => ({ ...data('basura', 'Sin comparación'), history: { persisted: true }, snapshotComparison: { eligible: false, reasons: ['coverage_changed'] } }) });
+await flush();
+assert.match(node('topicHistory').innerHTML, /No comparable/);
+assert.match(node('topicHistory').innerHTML, /Cambió la cobertura/);
+assert.doesNotMatch(node('topicHistory').innerHTML, /2 antes y 3 ahora/);
 const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
 assert.equal((html.match(/id="refreshBtn"/g) || []).length, 1);
 assert.ok(html.indexOf('id="refreshBtn"') < html.indexOf('<main class="dashboard"'), 'Refresh remains available when the map is hidden');
