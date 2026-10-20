@@ -60,3 +60,24 @@ Primero precisión, después cobertura. Una mención no es un evento; un evento 
 ### Verificación local
 
 `npm test` ejecuta parsers, geografía, evidencia, termómetro, salud, RSS y comparación de snapshots. `npm run smoke:electricidad` usa fuentes reales y no necesita clave. No se guardan claves ni datos simulados como captura real.
+
+## Expansión local de temas CABA — 20 de octubre de 2026
+
+La rama `feat/caba-topics-v01`, basada en la reparación de Electricidad, agrega:
+
+- `GET /api/basura`, `/api/transporte`, `/api/seguridad`: casos de basura/limpieza, transporte/subte y seguridad.
+- `GET /api/temas`: las tres capturas, con salud separada por tema.
+- `npm run smoke:topics`: dry-run real sin claves; escribe `tmp/live-topics-report.json`. Código de salida 1 si alguna cobertura está degradada/fallida. Una captura útil no se presenta como íntegra.
+- Selector mínimo en la interfaz existente. Sólo Electricidad conserva mapa y termómetro. Los otros temas no producen colores, zonas peligrosas ni tendencias a partir de noticias aisladas.
+
+Se consultan RSS públicos de Pura Ciudad, Revista El Abasto y Página/12. Los feeds se comparten entre consultas concurrentes, pero cada tema clasifica de forma separada. Las búsquedas upstream pueden coincidir con palabras del cuerpo que no aparecen en el resumen: esa coincidencia no es evidencia. No se leen automáticamente artículos completos, no se compran créditos y no se requieren cuentas nuevas.
+
+Cada ficha distingue publicación de fecha del hecho (desconocida si no se verificó), ubicación del reporte, nivel y alcance de confianza, respuesta oficial pendiente, orientación de competencia y próximo paso. Una mención a la policía o a un operador en un medio no equivale a confirmación primaria. En Seguridad se omiten nombres, edades, nacionalidades, antecedentes y otros datos personales no necesarios. Una detención no se presenta como nuevo robo ni culpabilidad. Las notas idénticas y una misma medida de subte de igual fecha/red/motivo se agrupan sin inferir corroboración independiente. Otras posibles duplicaciones quedan sujetas a revisión; el número de fichas no es incidencia delictiva ni cantidad de reclamos.
+
+Fechas antiguas, futuras, sin zona horaria, relatos retrospectivos explícitos, contexto territorial incompatible y URLs inseguras se descartan. Las cancelaciones y normalizaciones explícitas se distinguen de reportes; ningún resultado RSS por sí solo se marca como incidente activo. La publicación reciente no garantiza que un hecho sea reciente: los casos permanecen pendientes de lectura y verificación.
+
+La salud de consulta contempla errores HTTP, HTML, XML inválido, timeout y fuentes cuya publicación más reciente quedó fuera de ventana. Un feed válido vacío es distinto de uno fallido. `healthy` se refiere a consultas configuradas, no a cobertura exhaustiva; no encontrar casos no demuestra que no existan problemas. El historial de estos temas todavía no es comparable: tendencia desconocida.
+
+`docs/caba-topic-verified-cases-2026-10-20.json` contiene ejemplos revisados y fechados, incluidos casos resueltos, planeados y cancelados. Son evidencia de validación, no alertas estáticas que el runtime recicle. La observación operativa del subte sólo valía al instante indicado y exige reconsulta antes de tratarla como vigente.
+
+Esta expansión no cambia workflows, horarios, la rama que consume el piloto ni despliega una web. La vía propuesta es un PR draft separado, apilado sobre el PR #10, seguido de integración y despliegue autorizados de forma independiente. Mientras no se integre, el workflow horario continúa capturando sólo Electricidad.

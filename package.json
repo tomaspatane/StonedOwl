@@ -3,12 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "npm run test:electricidad && npm run test:sources && npm run test:geo && npm run test:thermometer && npm run test:frontend && node tests/electricidad-evidence.mjs && node tests/editorial-cases.mjs && node tests/capture-health.mjs && node tests/free-electricidad.mjs && node tests/electricidad-trend.mjs && node tests/capture-runtime.mjs && node tests/restore-previous-electricidad.mjs",
+    "test": "npm run test:electricidad && npm run test:sources && npm run test:geo && npm run test:thermometer && npm run test:frontend && node tests/electricidad-evidence.mjs && node tests/editorial-cases.mjs && node tests/capture-health.mjs && node tests/free-electricidad.mjs && node tests/electricidad-trend.mjs && node tests/capture-runtime.mjs && node tests/restore-previous-electricidad.mjs && node tests/caba-topics.mjs && node tests/topic-runtime.mjs && node tests/topic-frontend.mjs",
     "test:electricidad": "node tests/electricidad-parser.mjs",
     "test:sources": "node tests/source-parsers.mjs",
     "test:geo": "node tests/geo-context.mjs",
     "test:thermometer": "node tests/electricidad-thermometer.mjs",
     "test:frontend": "node --check public/app.js",
-    "smoke:electricidad": "node scripts/live-electricidad-smoke.mjs"
+    "smoke:electricidad": "node scripts/live-electricidad-smoke.mjs",
+    "smoke:topics": "node scripts/live-topics-smoke.mjs",
+    "preview:topics": "node scripts/build-topics-preview.mjs"
   }
 }

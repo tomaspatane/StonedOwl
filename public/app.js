@@ -40,6 +40,10 @@ const BARRIOS = [
 let currentData = null;
 let currentRows = [];
 let loading = false;
+let requestSequence = 0;
+let activeController = null;
+const topicLabels = { electricidad: 'Electricidad', basura: 'Basura y limpieza', transporte: 'Transporte y subte', seguridad: 'Seguridad' };
+const selectedTopic = () => $('problemFilter').value || 'electricidad';
 
 for (let comuna = 1; comuna <= 15; comuna += 1) {
   const option = document.createElement('option');
@@ -150,23 +154,30 @@ function renderAlerts() {
 
 function renderHeader() {
   const alerts = currentRows.filter(row => rowStatus(row) !== 'verde');
+  const topic = selectedTopic();
   $('updatedAt').textContent = fmtUpdated(currentData?.fetchedAt);
-  $('alertCount').textContent = `${alerts.length} / 48`;
+  $('alertCount').textContent = topic === 'electricidad' ? `${alerts.length} / 48` : 'No calibrado';
 
   const coverage = currentData?.coverage || {};
   const sources = [];
   if ((coverage.enreRawRecords || 0) > 0) sources.push('ENRE');
   if ((coverage.serperWebRaw || 0) > 0 || (coverage.territorialRaw || 0) > 0) sources.push('Web');
   if ((coverage.redditRaw || 0) > 0) sources.push('Social');
-  $('sourceCount').textContent = sources.length ? sources.join(' · ') : 'Sin señal';
+  $('sourceCount').textContent = topic === 'electricidad' ? (sources.length ? sources.join(' · ') : 'Sin señal') : (coverage.successfulPublishers?.join(' · ') || 'Sin fuentes disponibles');
   $('systemState').textContent = currentData?.captureHealth?.status === 'failed' ? 'Sin cobertura' : currentData?.ok ? 'Operativo' : 'Cobertura parcial';
   $('systemDot').className = `status-dot ${currentData?.ok ? 'live' : 'warn'}`;
 
   const territorial = coverage.territorialEnabled ? `${coverage.territorialBarrios?.length || 0} barrios en este barrido` : 'barrido territorial no activo';
-  $('coverageNote').textContent = `Piloto Electricidad · ${territorial}`;
+  $('coverageNote').textContent = topic === 'electricidad' ? `Piloto Electricidad · ${territorial}` : `${topicLabels[topic]} · cobertura parcial de publicaciones, no relevamiento exhaustivo`;
+  document.querySelector('.dashboard').hidden = topic !== 'electricidad';
+  $('statusFilter').disabled = topic !== 'electricidad';
 }
 
 function renderEditorialCases() {
+  if (loading && !currentData) {
+    $('editorialCases').innerHTML = '<div class="empty-state">Consultando las fuentes del tema elegido…</div>';
+    return;
+  }
   const cases = currentData?.editorialCases || [];
   const comuna = $('comunaFilter').value;
   const selected = cases.filter(item => comuna === 'all' || item.barrios.some(name => BARRIOS.some(b => b.name === name && String(b.comuna) === comuna)));
@@ -177,7 +188,9 @@ function renderEditorialCases() {
       if (!['http:', 'https:'].includes(url.protocol)) return '';
       return `<a href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">${esc(source.source)}</a> · ${esc(source.date || 'Sin fecha')}`;
     }).join('<br>');
-    return `<article class="editorial-card"><small>${esc(item.evidenceLabel)} · ${esc(item.barrios.join(', '))}</small><h3>${esc(item.title)}</h3><p>${esc(item.reportedFact)}</p><p>${links}</p><p><strong>Pregunta a investigar:</strong> ${esc(item.question)}</p><p><strong>Responsabilidad:</strong> ${esc(item.responsibility.operator || 'Prestador por verificar')}; competencia y respuesta de gestión por verificar.</p><p><strong>Siguiente paso:</strong> ${esc(item.nextStep)}</p></article>`;
+    const statusLabels = { versiones_en_conflicto: 'Versiones en conflicto; revisar la fuente', cancelado_segun_fuente: 'Medida cancelada según la fuente, no informar como activa', resuelto_segun_fuente: 'La fuente informa normalización, verificar estado actual', anunciado_no_verificado: 'Anunciado; vigencia no verificada', reportado_no_verificado: 'Reportado; estado actual no verificado' };
+    const detail = item.topicId ? `<p><strong>Estado:</strong> ${esc(statusLabels[item.reportedStatus] || 'No verificado')}. Fecha del hecho: ${esc(item.incidentDate || 'no verificada')}. Confianza en la ubicación del reporte: ${esc(item.confidence?.level || 'baja')}; no confirma el hecho.</p><p>Lectura de título y resumen RSS. Tendencia desconocida; sin historial comparable.</p>` : '';
+    return `<article class="editorial-card"><small>${esc(item.evidenceLabel)} · ${esc(item.location?.label || item.barrios.join(', '))}</small><h3>${esc(item.title)}</h3><p>${esc(item.reportedFact)}</p><p>${links}</p>${detail}<p><strong>Pregunta a investigar:</strong> ${esc(item.question)}</p><p><strong>Responsabilidad:</strong> ${esc(item.responsibility.operator || 'Prestador por verificar')}; ${esc(item.responsibility.government || 'competencia por verificar')}. Respuesta oficial del caso no verificada.</p><p><strong>Siguiente paso:</strong> ${esc(item.nextStep)}</p></article>`;
   }).join('') : '<div class="empty-state">Sin casos recuperados en esta captura para la comuna elegida. No implica ausencia de problemas.</div>';
 }
 
@@ -231,34 +244,47 @@ function closeDrawer() {
   setTimeout(() => { $('drawerBackdrop').hidden = true; }, 220);
 }
 
-async function getJson(url) {
-  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+async function getJson(url, signal) {
+  const response = await fetch(url, { headers: { Accept: 'application/json' }, signal });
   const data = await response.json().catch(() => ({ error: 'Respuesta inválida del backend' }));
   if (!response.ok) throw data;
   return data;
 }
 
 async function loadRadar() {
-  if (loading) return;
+  const sequence = ++requestSequence;
+  activeController?.abort();
+  activeController = new AbortController();
   loading = true;
+  currentData = null;
+  currentRows = [];
+  renderAll();
+  $('systemState').textContent = 'Consultando fuentes';
+  closeDrawer();
   $('refreshBtn').disabled = true;
   $('refreshBtn').textContent = 'Actualizando…';
   $('mapMessage').style.display = 'block';
   $('mapMessage').textContent = 'Escuchando CABA…';
   try {
     const span = $('spanFilter').value;
-    currentData = await getJson(`/api/electricidad?span=${encodeURIComponent(span)}&territorial=1`);
+    const topic = selectedTopic();
+    const data = await getJson(`/api/${topic}?span=${encodeURIComponent(span)}${topic === 'electricidad' ? '&territorial=1' : ''}`, activeController.signal);
+    if (sequence !== requestSequence) return;
+    currentData = data;
     currentRows = Array.isArray(currentData.radar) ? currentData.radar : [];
     renderAll();
     $('mapMessage').style.display = 'none';
   } catch (error) {
+    if (sequence !== requestSequence || error?.name === 'AbortError') return;
     console.error(error);
-    currentData = { ok: false, fetchedAt: new Date().toISOString(), coverage: {} };
+    currentData = { ok: false, fetchedAt: new Date().toISOString(), coverage: {}, captureHealth: { status: 'failed' } };
     currentRows = [];
     renderAll();
     $('mapMessage').style.display = 'block';
     $('mapMessage').textContent = 'No pude actualizar el radar.';
+    $('editorialCases').innerHTML = '<div class="empty-state">No se pudo consultar este tema. No implica ausencia de problemas. Intentá actualizar.</div>';
   } finally {
+    if (sequence !== requestSequence) return;
     loading = false;
     $('refreshBtn').disabled = false;
     $('refreshBtn').textContent = 'Actualizar';
@@ -267,6 +293,7 @@ async function loadRadar() {
 
 $('refreshBtn').onclick = loadRadar;
 $('spanFilter').onchange = loadRadar;
+$('problemFilter').onchange = loadRadar;
 $('comunaFilter').onchange = renderAll;
 $('statusFilter').onchange = renderAll;
 $('drawerClose').onclick = closeDrawer;
