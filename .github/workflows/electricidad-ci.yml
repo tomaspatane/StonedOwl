@@ -49,6 +49,7 @@ jobs:
           path: tmp/live-electricidad-report.json
           if-no-files-found: warn
 
+  # Per-PR artifacts only: this does not activate the hourly main workflow.
   topic-capture-history:
     runs-on: ubuntu-latest
     steps:
