@@ -123,12 +123,12 @@ function clockMs(now = new Date()) {
   return ms;
 }
 
-export function parseFreeElectricidadRss(raw, { feed = {}, span = '1d', now = new Date() } = {}) {
+export function parsePublisherRss(raw, { feed = {}, span = '1d', now = new Date(), matches = () => true, rejectionKey = 'no_topic_signal' } = {}) {
   const nowMs = clockMs(now);
   if (!WINDOWS[span]) throw failure('invalid_options', `Ventana no soportada: ${span}`);
   const channel = readRssTree(String(raw));
   const items = channel.children.filter((node) => node.name === 'item');
-  const rejected = { invalid_record: 0, missing_or_unparseable_date: 0, future_date: 0, outside_time_window: 0, no_electric_signal: 0 };
+  const rejected = { invalid_record: 0, missing_or_unparseable_date: 0, future_date: 0, outside_time_window: 0, [rejectionKey]: 0 };
   const articles = [];
   let latestPublishedMs = null;
   for (const item of items) {
@@ -143,8 +143,7 @@ export function parseFreeElectricidadRss(raw, { feed = {}, span = '1d', now = ne
     if (nowMs - dateMs > WINDOWS[span]) { rejected.outside_time_window++; continue; }
     const summary = plainText(value(item, 'description'));
     const snippet = summary.slice(0, 500);
-    const signals = matchElectricSignals(`${title} ${snippet}`).filter((signal) => !['entity', 'context'].includes(signal.signalType));
-    if (!signals.length) { rejected.no_electric_signal++; continue; }
+    if (!matches(`${title} ${snippet}`)) { rejected[rejectionKey]++; continue; }
     const publisherUrl = httpUrl(child(item, 'source')?.attributes?.url || '') || httpUrl(feed.url || '') || httpUrl(value(channel, 'link'));
     const publisherName = plainText(value(item, 'source')) || feed.name || plainText(value(channel, 'title'));
     const source = domain(publisherUrl) || domain(url);
@@ -173,7 +172,13 @@ export function parseFreeElectricidadRss(raw, { feed = {}, span = '1d', now = ne
   };
 }
 
-async function readFeed(feed, timeoutMs, fetchImpl) {
+// Preserve the original electricity contract and rejection diagnostics.
+export function parseFreeElectricidadRss(raw, options = {}) {
+  return parsePublisherRss(raw, { ...options, rejectionKey: 'no_electric_signal',
+    matches: (text) => matchElectricSignals(text).some(signal => !['entity', 'context'].includes(signal.signalType)) });
+}
+
+export async function readPublisherFeed(feed, timeoutMs, fetchImpl) {
   let requests = inflight.get(fetchImpl);
   if (!requests) { requests = new Map(); inflight.set(fetchImpl, requests); }
   const key = `${feed.url}|${timeoutMs}`;
@@ -230,7 +235,7 @@ export async function fetchFreeElectricidad(span = '1d', options = {}, fetchImpl
   const selectedPlan = territorial ? buildTerritorialPlan({ ...options, now: new Date(nowMs) }) : null;
   const settled = await Promise.all(feeds.map(async (feed) => {
     try {
-      const response = await readFeed(feed, timeoutMs, fetchImpl);
+      const response = await readPublisherFeed(feed, timeoutMs, fetchImpl);
       const parsed = parseFreeElectricidadRss(response.raw, { feed, span, now: nowMs });
       return { articles: parsed.articles, diagnostic: { q: null, feedId: feed.id, url: feed.url, ok: true, ...parsed.diagnostics, contentType: response.contentType, responseUrl: response.responseUrl } };
     } catch (error) {

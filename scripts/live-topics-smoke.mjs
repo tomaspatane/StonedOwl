@@ -1,0 +1,10 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import { captureAllTopics } from '../sources/caba-topic-capture.js';
+import { CAPTURE_WINDOWS } from '../data/caba-topics.js';
+const span = process.env.CAPTURE_SPAN || '1w';
+if (!Object.hasOwn(CAPTURE_WINDOWS, span)) throw new Error('CAPTURE_SPAN inválido');
+const report = await captureAllTopics({ span });
+await mkdir('tmp', { recursive: true });
+await writeFile('tmp/live-topics-report.json', JSON.stringify(report, null, 2));
+console.log(JSON.stringify(report, null, 2));
+if (!report.ok) process.exitCode = 1;

@@ -1,0 +1,320 @@
+{
+  "validated_at": "2026-10-20T14:08:00Z",
+  "timezone": "America/Argentina/Buenos_Aires",
+  "purpose": "Human-validated classification examples; not static live alerts.",
+  "cases": [
+    {
+      "case_id": "basura-san-cristobal-contenedor-2026-10-14",
+      "topic": "basura_limpieza",
+      "status": "resolved",
+      "event_date": "2026-10-14",
+      "place": {
+        "city": "CABA",
+        "barrio": "San Cristóbal",
+        "street": "Carlos Calvo al 2100, entre Rincón y Pasco"
+      },
+      "summary": "Un contenedor se incendió; bomberos lo apagaron. La nota informa que no hubo heridos y el tránsito se normalizó.",
+      "evidence_level": "reported_police_account",
+      "active_alert": false,
+      "sources": [
+        {
+          "publisher": "Revista El Abasto",
+          "source_id": "37794",
+          "url": "https://www.revistaelabasto.com.ar/se-incendio-un-contenedor-de-basura-en-san-cristobal-sin-heridos/",
+          "title": "Se incendió un contenedor de basura en San Cristóbal: sin heridos",
+          "published_at": "2026-10-15T02:12:17Z",
+          "modified_at": "2026-10-15T13:26:02Z",
+          "retrieval": "wordpress_rest_public_no_key"
+        }
+      ],
+      "caveats": [
+        "La causa del incendio seguía bajo investigación; no presentar una hipótesis como causa confirmada.",
+        "Resuelto se refiere al fuego y corte, no prueba reemplazo del contenedor."
+      ]
+    },
+    {
+      "case_id": "transporte-subte-paro-2026-10-20",
+      "topic": "transporte_subte",
+      "status": "confirmed",
+      "event_date": "2026-10-20",
+      "place": {
+        "city": "CABA",
+        "origin_station": "Juan Manuel de Rosas",
+        "origin_barrio": "Villa Urquiza",
+        "affected_lines": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "H",
+          "Premetro"
+        ]
+      },
+      "summary": "Interrupción por medida de fuerza gremial en toda la red y Premetro.",
+      "evidence_level": "primary_operational_status",
+      "active_alert": true,
+      "observed_at": "2026-10-20T14:07:33Z",
+      "primary_status_at": "2026-10-20T11:07:00-03:00",
+      "sources": [
+        {
+          "publisher": "Pura Ciudad",
+          "source_id": "248735",
+          "url": "https://www.puraciudad.com.ar/paro-sorpresivo-de-subtes-tras-la-detencion-de-trabajadores-y-delegados/",
+          "title": "Paro sorpresivo de subtes tras la detención de trabajadores y delegados",
+          "published_at": "2026-10-20T13:32:23Z",
+          "modified_at": "2026-10-20T13:42:23Z",
+          "retrieval": "wordpress_rest_public_no_key"
+        },
+        {
+          "publisher": "Revista El Abasto",
+          "source_id": "37944",
+          "url": "https://www.revistaelabasto.com.ar/paro-total-de-subtes-y-premetro-por-la-detencion-de-trabajadores/",
+          "title": "Paro total de subtes y Premetro por la detención de trabajadores",
+          "published_at": "2026-10-20T13:39:23Z",
+          "modified_at": "2026-10-20T13:42:19Z",
+          "retrieval": "wordpress_rest_public_no_key"
+        },
+        {
+          "publisher": "Emova",
+          "url": "https://aplicacioneswp.metrovias.com.ar/estadolineasemova/mobileemova.html",
+          "retrieval": "public_browser_rendered_state",
+          "visible_date": "20 DE OCTUBRE DE 2026",
+          "visible_update": "ULTIMA ACTUALIZACIÓN 11:07 HS",
+          "visible_status": "Todas las líneas se encuentran interrumpidas por medida de fuerza gremial."
+        }
+      ],
+      "caveats": [
+        "Los dos medios comparten redacción/comunicado; no son dos confirmaciones independientes.",
+        "Estado válido a la consulta; requiere revalidar antes de mostrar como vigente.",
+        "El HTML inicial del panel no contiene el estado: carga dinámicamente por SignalR."
+      ]
+    },
+    {
+      "case_id": "transporte-linea-h-horario-2026-10-20",
+      "topic": "transporte_subte",
+      "status": "planned",
+      "event_dates": [
+        "2026-10-20",
+        "2026-10-21"
+      ],
+      "place": {
+        "city": "CABA",
+        "line": "H",
+        "entry_station": "Caseros",
+        "exit_stations": [
+          "Humberto 1°",
+          "Once",
+          "Corrientes",
+          "Santa Fe"
+        ]
+      },
+      "summary": "Servicio nocturno especial anunciado hasta la 1:30 por los recitales en Huracán.",
+      "evidence_level": "operator_schedule_announcement",
+      "active_alert": false,
+      "sources": [
+        {
+          "publisher": "Pura Ciudad",
+          "source_id": "248707",
+          "url": "https://www.puraciudad.com.ar/la-linea-h-del-subte-extendera-su-horario-por-los-recitales-de-iron-maiden-en-huracan/",
+          "title": "La Línea H del subte extenderá su horario por los recitales de Iron Maiden en Huracán",
+          "published_at": "2026-10-19T16:38:12Z",
+          "modified_at": "2026-10-19T16:38:12Z",
+          "retrieval": "wordpress_rest_public_no_key"
+        },
+        {
+          "publisher": "Revista El Abasto",
+          "source_id": "37935",
+          "url": "https://www.revistaelabasto.com.ar/la-estacion-once-de-la-linea-h-estara-abierta-de-madrugada-por-los-recitales-de-iron-maiden/",
+          "title": "La estación Once de la Línea H estará abierta de madrugada por los recitales de Iron Maiden",
+          "published_at": "2026-10-20T01:38:24Z",
+          "modified_at": "2026-10-19T16:43:58Z",
+          "retrieval": "wordpress_rest_public_no_key"
+        },
+        {
+          "publisher": "Emova",
+          "url": "https://emova.com.ar/index.php/horarios-del-servicio/",
+          "retrieval": "web_search_document",
+          "description": "Horario especial de Línea H el 20 y 21 de octubre hasta 1:30, ingreso Caseros."
+        }
+      ],
+      "caveats": [
+        "No es una interrupción.",
+        "No asegurar prestación efectiva durante el paro de hoy.",
+        "Conservar la fecha textual del anuncio; las notas son ambiguas sobre la fecha civil de la madrugada.",
+        "Abasto ID37935 tiene modified_at anterior a published_at; no usar modified_at como clave cronológica única."
+      ]
+    },
+    {
+      "case_id": "transporte-linea-a-paro-2026-10-06",
+      "topic": "transporte_subte",
+      "status": "cancelled",
+      "event_date": "2026-10-06",
+      "place": {
+        "city": "CABA",
+        "line": "A"
+      },
+      "summary": "El gremio dejó sin efecto la medida anunciada tras un compromiso de devolución de descuentos.",
+      "evidence_level": "union_statement_reported",
+      "active_alert": false,
+      "sources": [
+        {
+          "publisher": "Revista El Abasto",
+          "source_id": "37593",
+          "url": "https://www.revistaelabasto.com.ar/levantaron-el-paro-de-subtes-en-la-linea-a/",
+          "title": "Levantaron el paro de subtes en la Línea A",
+          "published_at": "2026-10-06T22:58:08Z",
+          "modified_at": "2026-10-06T22:58:08Z",
+          "retrieval": "wordpress_rest_public_no_key"
+        }
+      ],
+      "caveats": [
+        "El título Levantaron el paro no prueba que el corte hubiera comenzado: el cuerpo dice medida prevista suspendida.",
+        "No implica resolución definitiva del conflicto ni pago efectivo de lo prometido."
+      ]
+    },
+    {
+      "case_id": "seguridad-balvanera-denuncia-2026-10-14",
+      "topic": "seguridad",
+      "status": "reported",
+      "event_date": "2026-10-10",
+      "place": {
+        "city": "CABA",
+        "barrio": "Balvanera",
+        "area": "Jujuy entre Hipólito Yrigoyen y Rivadavia"
+      },
+      "summary": "Una agrupación vecinal denunció una agresión y amenazas, y convocó una protesta por presunta venta de drogas en la zona.",
+      "evidence_level": "neighborhood_claim",
+      "active_alert": false,
+      "sources": [
+        {
+          "publisher": "Revista El Abasto",
+          "source_id": "37791",
+          "url": "https://www.revistaelabasto.com.ar/balvanera-vecinos-convocan-a-una-protesta-contra-la-venta-de-drogas-en-jujuy-y-rivadavia/",
+          "title": "Balvanera: vecinos convocan a una protesta contra la venta de drogas en Jujuy y Rivadavia",
+          "published_at": "2026-10-15T01:38:18Z",
+          "modified_at": "2026-10-15T01:44:06Z",
+          "retrieval": "wordpress_rest_public_no_key"
+        }
+      ],
+      "caveats": [
+        "No confirma delitos ni responsabilidad de personas.",
+        "La protesta estaba anunciada para el 17/10 al mediodía; al 20/10 es pasada y su realización no está verificada.",
+        "Omitir nombres, edades, antecedentes y otros datos personales no necesarios."
+      ]
+    },
+    {
+      "case_id": "seguridad-almagro-detencion-2026-09-29",
+      "topic": "seguridad",
+      "status": "reported",
+      "event_date": "2026-09-29",
+      "place": {
+        "city": "CABA",
+        "barrio": "Almagro",
+        "incident_street": "Quintino Bocayuva al 300",
+        "arrest_street": "Venezuela al 3600"
+      },
+      "summary": "El medio informó una detención tras un intento de robo a una automovilista y una persecución, citando un parte policial.",
+      "evidence_level": "reported_police_account",
+      "active_alert": false,
+      "sources": [
+        {
+          "publisher": "Revista El Abasto",
+          "source_id": "37443",
+          "url": "https://www.revistaelabasto.com.ar/tras-una-persecucion-detuvieron-en-almagro-a-un-hombre-con-antecedentes/",
+          "title": "Tras una persecución, detuvieron en Almagro a un hombre con antecedentes",
+          "published_at": "2026-09-30T15:34:43Z",
+          "modified_at": "2026-09-30T15:34:43Z",
+          "retrieval": "wordpress_rest_public_no_key"
+        }
+      ],
+      "caveats": [
+        "La detención no prueba culpabilidad ni resolución judicial.",
+        "No convertir un hecho del 29/9 en riesgo activo a la consulta del 20/10.",
+        "Omitir la lista de antecedentes y detalles personales."
+      ]
+    },
+    {
+      "case_id": "seguridad-subte-primera-junta-2026-10-08",
+      "topic": "seguridad",
+      "status": "reported",
+      "event_date": "2026-10-08",
+      "place": {
+        "city": "CABA",
+        "barrio": "Caballito",
+        "station": "Primera Junta",
+        "line": "A"
+      },
+      "summary": "La nota, atribuida a Noticias Argentinas, informa una detención tras una agresión a un policía en la estación.",
+      "evidence_level": "secondary_agency_account",
+      "active_alert": false,
+      "sources": [
+        {
+          "publisher": "Pura Ciudad",
+          "source_id": "248506",
+          "url": "https://www.puraciudad.com.ar/detuvieron-a-un-hombre-con-seis-antecedentes-tras-agredir-a-un-policia-en-el-subte-a/",
+          "title": "Detuvieron a un hombre con seis antecedentes tras agredir a un policía en el subte A",
+          "published_at": "2026-10-09T09:16:16Z",
+          "modified_at": "2026-10-09T11:20:02Z",
+          "retrieval": "wordpress_rest_public_no_key"
+        }
+      ],
+      "caveats": [
+        "Es un hecho de seguridad, no prueba de una interrupción de servicio.",
+        "No repetir información de salud, antecedentes ni otros datos personales."
+      ]
+    },
+    {
+      "case_id": "seguridad-constitucion-documentacion-2026-10-20-report",
+      "topic": "seguridad",
+      "status": "reported",
+      "event_date": null,
+      "place": {
+        "city": "CABA",
+        "barrio": "Constitución",
+        "comuna": "1",
+        "street": "Avenida Juan de Garay al 1300"
+      },
+      "summary": "La nota cita un procedimiento policial con dos detenciones y secuestro de teléfonos cuya procedencia no pudo ser documentada.",
+      "evidence_level": "reported_police_account",
+      "active_alert": false,
+      "sources": [
+        {
+          "publisher": "Pura Ciudad",
+          "source_id": "248718",
+          "url": "https://www.puraciudad.com.ar/detuvieron-a-dos-hombres-en-constitucion-con-11-celulares-de-alta-gama-sin-documentacion/",
+          "title": "Detuvieron a dos hombres en Constitución con 11 celulares de alta gama sin documentación",
+          "published_at": "2026-10-20T12:29:08Z",
+          "modified_at": "2026-10-20T12:29:08Z",
+          "retrieval": "wordpress_rest_public_no_key"
+        }
+      ],
+      "caveats": [
+        "Fecha de publicación 20/10; fecha del hecho no especificada. No inventarla.",
+        "Sin documentación no equivale a robo confirmado ni prueba de culpabilidad.",
+        "Omitir nacionalidad, identidad, edades y otra información personal innecesaria.",
+        "No inferir peligrosidad del barrio a partir de una noticia."
+      ]
+    }
+  ],
+  "retrieval_findings": {
+    "both_publishers": {
+      "rss": "HTTP 200, parseable XML, no credentials",
+      "wordpress_rest": "HTTP 200, parseable JSON, no credentials"
+    },
+    "rss_item_counts": {
+      "puraciudad": 10,
+      "revistaelabasto": 15
+    },
+    "rest_template": "https://www.{publisher}.com.ar/wp-json/wp/v2/posts?search={term}&per_page=6&_fields=id,date,date_gmt,modified,modified_gmt,link,title,content,excerpt,categories",
+    "pitfalls": [
+      "RSS is a small latest-items window; backfill via bounded REST date filters.",
+      "WP search=robo matches aprobó and other substrings. Require word-aware semantic filtering.",
+      "Keywords in body produce unrelated cultural/policy stories; avoid topic assignment from substring alone.",
+      "Do not treat planned, cancelled, resolved, or historic items as current active incidents.",
+      "Deduplicate same incident and syndicated copy across publishers.",
+      "State and confidence/evidence are separate axes.",
+      "CABA event location matters, not newspaper headquarters or city mentioned in passing."
+    ]
+  }
+}

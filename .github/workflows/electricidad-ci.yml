@@ -11,6 +11,7 @@ on:
       - 'worker-v09.js'
       - 'worker-v10.js'
       - 'worker-v11.js'
+      - 'worker-topics.js'
       - 'src/worker.js'
       - 'package.json'
       - '.github/workflows/electricidad-ci.yml'
@@ -47,3 +48,22 @@ jobs:
           name: live-electricidad-report
           path: tmp/live-electricidad-report.json
           if-no-files-found: warn
+
+  # Per-PR artifacts only: this does not activate the hourly main workflow.
+  topic-capture-history:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Capture public CABA topics and save snapshot
+        run: npm run capture:topics
+      - name: Preserve topic capture and integrity envelope
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stonedowl-topics-ci-${{ github.run_id }}
+          path: tmp/topic-capture-artifact/*.json
+          if-no-files-found: error
+          retention-days: 14

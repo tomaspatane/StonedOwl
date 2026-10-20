@@ -25,8 +25,18 @@
     </div>
   </header>
 
+  <section class="filters panel" aria-label="Filtros de temas">
+    <label><span>Problema</span><select id="problemFilter"><option value="electricidad">Electricidad</option><option value="basura">Basura y limpieza</option><option value="transporte">Transporte y subte</option><option value="seguridad">Seguridad</option></select></label>
+    <label><span>Comuna</span><select id="comunaFilter"><option value="all">Todas</option></select></label>
+    <label><span>Estado</span><select id="statusFilter"><option value="all">Todos</option><option value="amarillo">Atención</option><option value="naranja">Problema</option><option value="rojo">Crítico</option><option value="verde">Sin señal suficiente</option></select></label>
+    <label><span>Ventana</span><select id="spanFilter"><option value="1d">24 horas</option><option value="3d">3 días</option><option value="1w" selected>7 días</option></select></label>
+    <div class="filter-note">Sólo Electricidad tiene termómetro. Los demás temas muestran reportes para verificar.</div>
+  </section>
+
   <section class="panel editorial-panel" aria-labelledby="editorialTitle">
-    <div class="panel-head"><div><span class="eyebrow">Agenda pública</span><h2 id="editorialTitle">Casos para trabajar</h2><p>Qué pasa, qué evidencia hay y qué respuesta falta.</p></div></div>
+    <div class="panel-head"><div><span class="eyebrow">Agenda pública</span><h2 id="editorialTitle">Casos para trabajar</h2><p>Qué pasa, qué evidencia hay y qué respuesta falta.</p></div><button id="refreshBtn" class="ghost-btn" type="button">Actualizar</button></div>
+    <p id="topicCoverage" class="topic-coverage" hidden></p>
+    <div id="topicHistory" class="topic-coverage" hidden></div>
     <div id="editorialCases" class="editorial-cases"><div class="empty-state">Esperando captura.</div></div>
   </section>
   <main class="dashboard">
@@ -36,7 +46,6 @@
           <span class="eyebrow">Termómetro territorial</span>
           <h2>Ciudad de Buenos Aires</h2>
         </div>
-        <button id="refreshBtn" class="ghost-btn" type="button">Actualizar</button>
       </div>
 
       <div class="map-stage" id="mapStage" aria-label="Mapa simplificado de barrios de CABA">
@@ -69,15 +78,7 @@
     </aside>
   </main>
 
-  <section class="filters panel">
-    <label><span>Problema</span><select id="problemFilter" disabled><option>Electricidad</option></select></label>
-    <label><span>Comuna</span><select id="comunaFilter"><option value="all">Todas</option></select></label>
-    <label><span>Estado</span><select id="statusFilter"><option value="all">Todos</option><option value="amarillo">Atención</option><option value="naranja">Problema</option><option value="rojo">Crítico</option><option value="verde">Sin señal suficiente</option></select></label>
-    <label><span>Ventana</span><select id="spanFilter"><option value="1d" selected>24 horas</option><option value="3d">3 días</option><option value="1w">7 días</option></select></label>
-    <div class="filter-note">Los colores muestran señal detectada, no certeza absoluta.</div>
-  </section>
-
-  <footer>Stoned Owl · piloto Electricidad · la evidencia social, oficial y mediática se puntúa por separado.</footer>
+  <footer>Stoned Owl · radar CABA · una fuente no confirma el hecho; sin historial comparable no se infieren tendencias.</footer>
 </div>
 
 <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
