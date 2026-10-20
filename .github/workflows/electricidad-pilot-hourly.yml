@@ -49,3 +49,38 @@ jobs:
           path: tmp/live-electricidad-report.json
           if-no-files-found: error
           retention-days: 14
+
+  topics-capture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout topic pilot branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/caba-topics-v01
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run topic and regression tests
+        run: npm test
+
+      - name: Restore previous topic snapshot
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/restore-previous-topics.mjs
+
+      - name: Capture and persist CABA topic snapshot
+        env:
+          PREVIOUS_TOPICS_SNAPSHOT: tmp/previous-topics-snapshot.json
+        run: npm run capture:topics
+
+      - name: Upload topic snapshot and comparison
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stonedowl-topics-${{ github.run_id }}
+          path: tmp/topic-capture-artifact/*.json
+          if-no-files-found: error
+          retention-days: 14
