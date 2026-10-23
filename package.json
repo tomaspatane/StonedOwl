@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "npm run test:electricidad && npm run test:sources && npm run test:geo && npm run test:thermometer && npm run test:frontend && node tests/electricidad-evidence.mjs && node tests/editorial-cases.mjs && node tests/capture-health.mjs && node tests/free-electricidad.mjs && node tests/electricidad-trend.mjs && node tests/capture-runtime.mjs && node tests/restore-previous-electricidad.mjs && node tests/caba-topics.mjs && node tests/topic-runtime.mjs && node tests/topic-frontend.mjs && node tests/caba-topic-history.mjs && node tests/topic-history-store.mjs && node tests/topic-history-capture.mjs && node tests/restore-previous-topics.mjs",
+    "test": "npm run test:electricidad && npm run test:sources && npm run test:geo && npm run test:thermometer && npm run test:frontend && node tests/electricidad-evidence.mjs && node tests/editorial-cases.mjs && node tests/capture-health.mjs && node tests/free-electricidad.mjs && node tests/electricidad-trend.mjs && node tests/capture-runtime.mjs && node tests/restore-previous-electricidad.mjs && node tests/caba-topics.mjs && node tests/topic-runtime.mjs && node tests/topic-frontend.mjs && node tests/caba-topic-history.mjs && node tests/topic-history-store.mjs && node tests/topic-history-capture.mjs && node tests/restore-previous-topics.mjs && node tests/retrieval-benchmark.mjs",
     "test:electricidad": "node tests/electricidad-parser.mjs",
     "test:sources": "node tests/source-parsers.mjs",
     "test:geo": "node tests/geo-context.mjs",
@@ -12,6 +12,7 @@
     "smoke:electricidad": "node scripts/live-electricidad-smoke.mjs",
     "smoke:topics": "node scripts/live-topics-smoke.mjs",
     "capture:topics": "node scripts/capture-topics-history.mjs",
-    "preview:topics": "node scripts/build-topics-preview.mjs"
+    "preview:topics": "node scripts/build-topics-preview.mjs",
+    "benchmark:retrieval": "node scripts/run-retrieval-benchmark.mjs"
   }
 }
