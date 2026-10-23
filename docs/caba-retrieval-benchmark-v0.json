@@ -1,0 +1,56 @@
+{
+  "benchmarkId": "caba-retrieval-v0",
+  "createdAt": "2026-10-23",
+  "targetIncidentCount": 30,
+  "goldSource": "docs/caba-topic-verified-cases-2026-10-20.json",
+  "observedNegativeSource": "tests/electricidad-audit-2026-10-06.json",
+  "limitations": [
+    "La muestra inicial contiene 8 incidentes verificados, no los 30 requeridos para elegir un método.",
+    "El baseline vectorial usa TF-IDF local y no debe describirse como recuperación semántica.",
+    "Los documentos relevantes provienen del mismo expediente humano usado para redactar las consultas; el resultado inicial sirve para validar el arnés, no para estimar rendimiento en producción.",
+    "Los tres negativos observados provienen de una auditoría de Electricidad y no representan toda la variedad de ruido de los otros temas."
+  ],
+  "queries": [
+    {
+      "incidentIndex": 0,
+      "queryType": "lugar_y_hecho",
+      "text": "incendio contenedor Carlos Calvo San Cristóbal"
+    },
+    {
+      "incidentIndex": 1,
+      "queryType": "evento_y_alcance",
+      "text": "paro total subte todas las líneas y Premetro por detención de trabajadores"
+    },
+    {
+      "incidentIndex": 2,
+      "queryType": "servicio_y_horario",
+      "text": "horario especial línea H hasta 1:30 por recitales en Huracán"
+    },
+    {
+      "incidentIndex": 3,
+      "queryType": "cambio_de_estado",
+      "text": "levantaron paro línea A devolución de descuentos"
+    },
+    {
+      "incidentIndex": 4,
+      "queryType": "lugar_y_reclamo",
+      "text": "vecinos Balvanera protesta venta de drogas Jujuy y Rivadavia"
+    },
+    {
+      "incidentIndex": 5,
+      "queryType": "lugar_y_hecho",
+      "text": "persecución intento de robo automovilista Quintino Bocayuva Almagro"
+    },
+    {
+      "incidentIndex": 6,
+      "queryType": "lugar_y_hecho",
+      "text": "agresión a policía estación Primera Junta línea A"
+    },
+    {
+      "incidentIndex": 7,
+      "queryType": "cantidad_y_lugar",
+      "text": "dos hombres once celulares sin documentación Constitución Juan de Garay"
+    }
+  ]
+}
+
