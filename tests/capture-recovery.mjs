@@ -1,3 +1,4 @@
+import { readPublisherFeed } from '../sources/free-electricidad.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { resolveEnreSourceUpdatedAt, compareElectricitySnapshots } from '../data/electricidad-trend.js';
@@ -90,4 +91,11 @@ test('empty topic capture is insufficient even with all feeds reachable',()=>{
 test('persisted provider cooldown prevents another run from retrying early', async () => {
   const r=await fetchCitizenElectricity('1w','',async()=>assert.fail('cooldown must prevent network'),{cooldownUntil:new Date(Date.now()+600000).toISOString()});
   assert.equal(r.diagnostics.cooldown.code,'provider_cooldown');assert.equal(r.diagnostics.cooldown.ok,false);
+});
+
+test('publisher requests are serialized per host and queue releases on failure', async () => {
+ let active=0,peak=0,calls=0;
+ const f=async()=>{active++;peak=Math.max(peak,active);calls++;await new Promise(resolve=>setTimeout(resolve,1));active--;return calls===1?new Response('',{status:503}):new Response('<rss><channel/></rss>');};
+ const results=await Promise.allSettled([1,2,3].map(i=>readPublisherFeed({id:String(i),url:'https://publisher.test/feed/'+i},100,f)));
+ assert.equal(peak,1);assert.equal(calls,3);assert.equal(results[0].status,'rejected');assert.equal(results[2].status,'fulfilled');
 });
