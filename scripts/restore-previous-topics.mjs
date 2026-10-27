@@ -133,7 +133,11 @@ export async function restorePreviousTopics({
   }
   // Deliberately do not test run.conclusion or capture health.
   const artifacts = await list(`${base}/runs/${run.id}/artifacts`, 'artifacts', 'artifact_list');
-  const matching = artifacts.filter(artifact => artifact?.name === `stonedowl-topics-${run.id}`);
+  const named = artifacts.filter(artifact => artifact?.name === `stonedowl-topics-${run.id}`);
+  // Re-runs can retain artifacts with the same name from older attempts.
+  // Use the independently verified latest attempt start, never artifact health.
+  const matching = named.length > 1 ? named.filter(artifact => Date.parse(artifact.created_at) >= runStartedAt) : named;
+  if (named.length && !matching.length) throw failure('invalid_previous_artifact');
   if (!matching.length) return { restored: false, reason: 'previous_artifact_missing', runId: run.id };
   if (matching.length !== 1) throw failure('ambiguous_previous_artifact');
   const artifact = matching[0];
@@ -206,3 +210,4 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     console.warn('::warning::Previous topic snapshot could not be restored; comparison remains unknown.');
   }
 }
+

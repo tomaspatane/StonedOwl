@@ -21,6 +21,7 @@ export const FREE_ELECTRICIDAD_FEEDS = Object.freeze([
 const WINDOWS = { '6h': 21600000, '1d': 86400000, '3d': 259200000, '1w': 604800000 };
 const MAX_XML_LENGTH = 2_000_000;
 const inflight = new WeakMap();
+const hostQueues = new WeakMap();
 
 function failure(code, message) {
   return Object.assign(new Error(message), { code });
@@ -187,7 +188,15 @@ export async function readPublisherFeed(feed, timeoutMs, fetchImpl) {
   if (!requests) { requests = new Map(); inflight.set(fetchImpl, requests); }
   const key = `${feed.url}|${timeoutMs}`;
   if (requests.has(key)) return requests.get(key);
+  let queues = hostQueues.get(fetchImpl);
+  if (!queues) { queues = new Map(); hostQueues.set(fetchImpl, queues); }
+  const host = new URL(feed.url).host;
+  const predecessor = queues.get(host) || Promise.resolve();
+  let release;
+  const slot = new Promise(resolve => { release = resolve; });
+  queues.set(host, slot);
   const pending = (async () => {
+    await predecessor;
     const controller = new AbortController();
     let timer;
     try {
@@ -210,7 +219,11 @@ export async function readPublisherFeed(feed, timeoutMs, fetchImpl) {
           }, timeoutMs);
         })
       ]);
-    } finally { clearTimeout(timer); }
+    } finally {
+      clearTimeout(timer);
+      release();
+      if (queues.get(host) === slot) queues.delete(host);
+    }
   })();
   requests.set(key, pending);
   try { return await pending; } finally { requests.delete(key); }
