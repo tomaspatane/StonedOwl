@@ -42,7 +42,7 @@ async function guarded(task) {
 // remove the public source. Zero valid results is a valid empty search, not an error.
 export async function fetchWebElectricity(span = '1d', apiKey = '', options = {}, fetchImpl = fetch) {
   const primary = await guarded(() => fetchFreeElectricidad(span, options, fetchImpl));
-  if (summarizeSourceHealth(primary).successful > 0 || !apiKey) return { ...primary, mode: 'public-publisher-rss' };
+  if (summarizeSourceHealth(primary).successful > 0 || !apiKey || options.allowPaidFallback !== true) return { ...primary, mode: 'public-publisher-rss' };
   const fallback = await guarded(() => options.territorial || options.barrios?.length
     ? fetchSerperElectricidadTerritorial(span, apiKey, options, fetchImpl)
     : fetchSerperElectricidad(span, apiKey, fetchImpl));
@@ -52,11 +52,15 @@ export async function fetchWebElectricity(span = '1d', apiKey = '', options = {}
     mode: 'public-publisher-rss-with-serper-fallback' };
 }
 
-export async function fetchCitizenElectricity(span = '1d', apiKey = '', fetchImpl = fetch) {
-  const primary = await guarded(() => fetchRedditElectricidad(span, fetchImpl));
-  if (summarizeSourceHealth(primary).successful > 0 || !apiKey) return { ...primary, mode: 'direct-reddit' };
+export async function fetchCitizenElectricity(span = '1d', apiKey = '', fetchImpl = fetch, options = {}) {
+  const cooldown = Date.parse(options.cooldownUntil || '');
+  const primary = cooldown > Date.now()
+    ? { articles: [], diagnostics: { cooldown: { ok: false, code: 'provider_cooldown', retryAt: options.cooldownUntil, error: 'Reddit retry interval has not elapsed' } } }
+    : await guarded(() => fetchRedditElectricidad(span, fetchImpl));
+  if (summarizeSourceHealth(primary).successful > 0 || !apiKey || options.allowPaidFallback !== true) return { ...primary, mode: 'direct-reddit' };
   const fallback = await guarded(() => fetchSerperRedditElectricidad(span, apiKey, fetchImpl));
   return { ...primary, articles: [...(primary.articles || []), ...(fallback.articles || [])],
     diagnostics: summarizeSourceHealth(fallback).status === 'healthy' ? fallback.diagnostics : { direct: primary.diagnostics, paidFallback: fallback.diagnostics },
     attempts: { direct: primary.diagnostics, paidFallback: fallback.diagnostics }, mode: 'direct-reddit-with-serper-fallback' };
 }
+

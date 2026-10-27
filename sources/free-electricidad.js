@@ -10,6 +10,10 @@ export const FREE_ELECTRICIDAD_FEEDS = Object.freeze([
   { id: 'pura_ciudad', name: 'Pura Ciudad', url: 'https://www.puraciudad.com.ar/?s=luz&feed=rss2' },
   { id: 'el_abasto', name: 'Revista El Abasto', url: 'https://www.revistaelabasto.com.ar/?s=corte+de+luz&feed=rss2' },
   { id: 'parque_chas', name: 'Parque Chas Web', url: 'https://www.parquechasweb.com.ar/?s=luz&feed=rss2' },
+  ...['apagon', 'sin luz', 'baja tension'].flatMap(term => [
+    { id: `pura_ciudad_${term.replaceAll(' ', '_')}`, name: 'Pura Ciudad', url: `https://www.puraciudad.com.ar/?s=${encodeURIComponent(term)}&feed=rss2` },
+    { id: `el_abasto_${term.replaceAll(' ', '_')}`, name: 'Revista El Abasto', url: `https://www.revistaelabasto.com.ar/?s=${encodeURIComponent(term)}&feed=rss2` }
+  ]),
   { id: 'clarin_sociedad', name: 'Clarín', url: 'https://www.clarin.com/rss/sociedad/' },
   { id: 'pagina12_sociedad', name: 'Página/12', url: 'https://www.pagina12.com.ar/arc/outboundfeeds/rss/secciones/sociedad/notas/' }
 ].map((feed) => Object.freeze(feed)));
@@ -264,3 +268,4 @@ export async function fetchFreeElectricidad(span = '1d', options = {}, fetchImpl
 export async function fetchFreeElectricidadTerritorial(span = '1d', options = {}, fetchImpl = fetch) {
   return fetchFreeElectricidad(span, { ...options, territorial: true }, fetchImpl);
 }
+
