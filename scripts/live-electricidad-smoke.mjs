@@ -1,3 +1,6 @@
+import { assessCapture } from '../data/capture-assessment.js';
+import { captureMetadata, writeCaptureSummary } from './lib/capture-metadata.mjs';
+import { FREE_ELECTRICIDAD_FEEDS } from '../sources/free-electricidad.js';
 import { compareElectricitySnapshots } from '../data/electricidad-trend.js';
 import { captureHealth, fetchWebElectricity, fetchCitizenElectricity } from '../sources/electricidad-capture.js';
 import { buildEditorialCases } from '../data/editorial-cases.js';
@@ -116,10 +119,20 @@ function summarizeOfficial(record) {
 }
 
 const span = ['6h', '1d', '3d', '1w'].includes(process.env.CAPTURE_SPAN) ? process.env.CAPTURE_SPAN : '1w';
-const fetchCitizenSource = () => fetchCitizenElectricity(span, process.env.SERPER_API_KEY || '');
-const fetchGeneralWebSource = () => fetchWebElectricity(span, process.env.SERPER_API_KEY || '');
+let previous = null;
+let previousReportError = null;
+if (process.env.PREVIOUS_REPORT) {
+  try { previous = JSON.parse(await readFile(process.env.PREVIOUS_REPORT, 'utf8')); }
+  catch (error) { previousReportError = String(error?.message || error); }
+}
+const previousReddit = previous?.sourceHealth?.reddit?.diagnostics;
+const retryTimes = Object.values(previousReddit?.direct || previousReddit || {}).map(d => Date.parse(d?.retryAt || '')).filter(Number.isFinite);
+const cooldownUntil = retryTimes.length ? new Date(Math.max(...retryTimes)).toISOString() : null;
+const allowPaidFallback = process.env.ALLOW_PAID_FALLBACK === 'true';
+const fetchCitizenSource = () => fetchCitizenElectricity(span, process.env.SERPER_API_KEY || '', fetch, { allowPaidFallback, cooldownUntil });
+const fetchGeneralWebSource = () => fetchWebElectricity(span, process.env.SERPER_API_KEY || '', { allowPaidFallback });
 // Rotate all 48 neighborhoods instead of permanently sampling the same six.
-const fetchTerritorialWebSource = () => fetchWebElectricity(span, process.env.SERPER_API_KEY || '', { territorial: true, batchSize: 12 });
+const fetchTerritorialWebSource = () => fetchWebElectricity(span, process.env.SERPER_API_KEY || '', { territorial: true, batchSize: 12, allowPaidFallback });
 
 const startedAt = new Date().toISOString();
 const [redditResult, webResult, territorialResult, enreResult] = await Promise.allSettled([
@@ -276,16 +289,18 @@ const report = {
   officialSignals
 };
 
-let previous = null;
-let previousReportError = null;
-if (process.env.PREVIOUS_REPORT) {
-  try { previous = JSON.parse(await readFile(process.env.PREVIOUS_REPORT, 'utf8')); }
-  catch (error) { previousReportError = String(error?.message || error); }
-}
 report.snapshotComparison = compareElectricitySnapshots({ current: report, previous });
 if (previousReportError) report.snapshotComparison.inputError = previousReportError;
 // Case-level trend remains unknown: snapshot deltas are not incident resolution
 // or complaint prevalence. Expose the bounded metric separately for review.
+report.provenance = captureMetadata({ span, allowPaidFallback, feeds: FREE_ELECTRICIDAD_FEEDS, assessmentVersion: 'capture-assessment-v1' });
+report.quality = assessCapture(report, { previousCapturedAt: previous?.finishedAt });
+// Raw officialSignals remain available for audit. Invalid official snapshots
+// must not appear as current impact in the convenience radar.
+if (!report.quality.evidence.officialSnapshot.valid) {
+  report.radar = report.radar.map(row => ({ ...row, affectedUsers: null, officialDataStatus: 'unverified' }));
+}
+await writeCaptureSummary(report);
 await mkdir('tmp', { recursive: true });
 await writeFile('tmp/live-electricidad-report.json', JSON.stringify(report, null, 2), 'utf8');
 console.log(JSON.stringify(report, null, 2));
@@ -293,4 +308,5 @@ console.log(JSON.stringify(report, null, 2));
 if (!report.ok) {
   process.exitCode = 1;
 }
+
 

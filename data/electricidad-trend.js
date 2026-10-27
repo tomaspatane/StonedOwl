@@ -62,7 +62,7 @@ export function parseEnreUpdatedAt(value) {
  */
 export function resolveEnreSourceUpdatedAt(clock, httpLastModified) {
   if (typeof clock !== 'string' || typeof httpLastModified !== 'string') return null;
-  const clockMatch = clock.match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/);
+  const clockMatch = clock.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
   if (!clockMatch || Number(clockMatch[1]) > 23 || Number(clockMatch[2]) > 59 || Number(clockMatch[3] || 0) > 59) return null;
   if (!/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(httpLastModified)) return null;
   const modifiedAt = Date.parse(httpLastModified);
@@ -71,7 +71,7 @@ export function resolveEnreSourceUpdatedAt(clock, httpLastModified) {
   const argentineDate = modifiedAt - 3 * 60 * 60 * 1000;
   for (const dayOffset of [0, 1]) {
     const date = new Date(argentineDate - dayOffset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const candidate = timestamp(`${date}T${clock}-03:00`);
+    const candidate = timestamp(`${date}T${clockMatch[1].padStart(2, "0")}:${clockMatch[2]}:${clockMatch[3] || "00"}-03:00`);
     if (candidate !== null && candidate <= modifiedAt && modifiedAt - candidate <= 10 * 60 * 1000) {
       return new Date(candidate).toISOString();
     }
@@ -185,6 +185,7 @@ function comparison(current, previous, errors, extra = {}) {
     label: TREND_LABELS[trend],
     reason: reasons[0]?.reason || 'comparable_official_snapshots',
     reasonCodes: [...new Set(reasons.map(item => item.reason))],
+    observedCoverage: { common: [...current.keys()].filter(key => previous.has(key)), currentOnly: [...current.keys()].filter(key => !previous.has(key)), previousOnly: [...previous.keys()].filter(key => !current.has(key)) },
     // With invalid coverage even the visible partial sums could mislead; expose
     // counts only once collection validity has been established.
     currentAffectedUsers: errors.length ? null : currentUsers,
@@ -242,4 +243,12 @@ export function compareElectricitySnapshots({ current, previous = null, now = Da
     caveats: [...CAVEATS],
     byBarrio: barrios.map(barrio => comparison(filter(present.groups, barrio), filter(past.groups, barrio), errors, { barrio }))
   };
+}
+
+
+export function assessOfficialSnapshot(report, now = Date.now()) {
+  const inspected = inspectSnapshot(report, 'current', ELECTRICITY_TREND_LIMITS, now);
+  return { valid: inspected.errors.length === 0, reasons: inspected.errors,
+    observedGroups: inspected.groups.size, affectedUsers: inspected.observedAffectedUsers,
+    interpretation: 'Only observed, unplanned CABA groups; not a city total or population count.' };
 }
