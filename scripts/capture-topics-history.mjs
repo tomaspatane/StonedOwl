@@ -1,9 +1,11 @@
+import { assessCapture } from '../data/capture-assessment.js';
+import { captureMetadata, writeCaptureSummary } from './lib/capture-metadata.mjs';
 import { mkdir, writeFile, rename, copyFile, rm, open, realpath } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { dirname, resolve, join, relative, isAbsolute, basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { captureAllTopics } from '../sources/caba-topic-capture.js';
+import { captureAllTopics, TOPIC_FEEDS } from '../sources/caba-topic-capture.js';
 import { CAPTURE_WINDOWS } from '../data/caba-topics.js';
 import { compareTopicReports } from '../data/caba-topic-history.js';
 import { readLatestTopicSnapshot, persistTopicSnapshot, validateTopicSnapshotEnvelope } from './lib/topic-history-store.mjs';
@@ -60,11 +62,12 @@ export async function captureAndStoreTopics({
     // Explicit restoration failure never falls back to an unrelated local file.
   } else baseline = await readLatestTopicSnapshot({ directory });
   const report = await capture({ span, now });
+  report.provenance = captureMetadata({ span, feeds: TOPIC_FEEDS, assessmentVersion: 'capture-assessment-v1' });
   const comparisons = compareTopicReports(baseline.report, report, { now });
   const history = { persisted: false, storage: 'local_filesystem',
     previousSnapshotId: baseline.snapshotId || null, previousCapturedAt: baseline.report?.fetchedAt || null,
-    baselineReason: baseline.reason || 'restored', automaticSchedule: false,
-    interpretation: 'Se guarda una captura por ejecución. Esto no activa una captura periódica ni mide incidentes.' };
+    baselineReason: baseline.reason || 'restored', automaticSchedule: process.env.GITHUB_EVENT_NAME === 'schedule',
+    interpretation: 'Se guarda una captura por ejecución. La periodicidad efectiva se informa por separado; no mide incidentes.' };
   let saved;
   try {
     saved = await persistTopicSnapshot(report, { directory, recordedAt: new Date().toISOString() });
@@ -74,6 +77,8 @@ export async function captureAndStoreTopics({
   for (const [topic, comparison] of Object.entries(comparisons)) report.topics[topic].snapshotComparison = comparison;
   report.history = history;
   for (const topic of Object.keys(report.topics)) report.topics[topic].history = history;
+  report.quality = assessCapture(report, { now, previousCapturedAt: baseline.report?.fetchedAt, persisted: history.persisted });
+  await writeCaptureSummary(report);
   await writeAtomic(outputPath, report);
   await mkdir(artifactDirectory, { recursive: true });
   await writeAtomic(artifactReport, report);
@@ -93,7 +98,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     previousSnapshotPath: process.env.PREVIOUS_TOPICS_SNAPSHOT ? resolve(process.env.PREVIOUS_TOPICS_SNAPSHOT) : null,
     span: process.env.CAPTURE_SPAN || '1w'
   });
-  console.log(JSON.stringify({ capturedAt: result.report.fetchedAt, history: result.report.history,
+  console.log(JSON.stringify({ capturedAt: result.report.fetchedAt, history: result.report.history, quality: result.report.quality, provenance: result.report.provenance,
     topics: Object.fromEntries(Object.entries(result.report.topics).map(([topic, data]) => [topic, { health: data.captureHealth.status, cases: data.editorialCases.length, comparison: data.snapshotComparison }])) }, null, 2));
   process.exitCode = result.exitCode;
 }
+

@@ -11,8 +11,8 @@ function localFeeds(terms) {
   return terms.flatMap(term => [searchFeed('pura_ciudad', 'Pura Ciudad', 'https://www.puraciudad.com.ar', term), searchFeed('el_abasto', 'Revista El Abasto', 'https://www.revistaelabasto.com.ar', term)]);
 }
 export const TOPIC_FEEDS = Object.freeze({
-  basura: Object.freeze([...localFeeds(['basura', 'limpieza']), society]),
-  transporte: Object.freeze([...localFeeds(['subte', 'colectivos']), society]),
+  basura: Object.freeze([...localFeeds(['basura', 'limpieza', 'contenedores']), society]),
+  transporte: Object.freeze([...localFeeds(['subte', 'colectivos', 'premetro']), society]),
   seguridad: Object.freeze([
     { id: 'pura_ciudad_policiales', name: 'Pura Ciudad', url: 'https://www.puraciudad.com.ar/category/policiales/feed/' },
     searchFeed('pura_ciudad', 'Pura Ciudad', 'https://www.puraciudad.com.ar', 'robo'),
@@ -76,3 +76,4 @@ export async function captureAllTopics(options = {}, fetchImpl = fetch) {
     editorialCases: all.flatMap(item => item.editorialCases),
     trend: { status: 'unknown', reason: 'sin_historial_comparable_de_incidentes' } };
 }
+

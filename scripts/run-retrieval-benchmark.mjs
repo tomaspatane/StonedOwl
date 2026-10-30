@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { runRetrievalBenchmark } from "../data/retrieval-benchmark.js";
+import { runRetrievalBenchmark, sourceDocumentText } from "../data/retrieval-benchmark.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = path.join(root, "docs/caba-retrieval-benchmark-v0.json");
@@ -13,20 +13,19 @@ const manifest = await readJson(manifestPath);
 const gold = await readJson(path.join(root, manifest.goldSource));
 const observedNegatives = await readJson(path.join(root, manifest.observedNegativeSource));
 
-function placeText(place = {}) {
-  return Object.values(place)
-    .flatMap(value => Array.isArray(value) ? value : [value])
-    .filter(Boolean)
-    .join(" ");
-}
-
 const documents = [];
+const excludedDocuments = [];
 const sourceIdsByIncident = new Map();
 gold.cases.forEach((incident, incidentIndex) => {
   const incidentId = `case-${String(incidentIndex + 1).padStart(3, "0")}`;
   const documentIds = [];
   incident.sources.forEach((source, sourceIndex) => {
     const id = `${incidentId}-source-${String(sourceIndex + 1).padStart(2, "0")}`;
+    const text = sourceDocumentText(source);
+    if (!text) {
+      excludedDocuments.push({ id, url: source.url, reason: "no_recorded_source_text" });
+      return;
+    }
     documentIds.push(id);
     documents.push({
       id,
@@ -34,9 +33,7 @@ gold.cases.forEach((incident, incidentIndex) => {
       relevant: true,
       provenance: "human_validated_case",
       url: source.url,
-      text: [source.title, source.description, source.visible_status, incident.summary, placeText(incident.place)]
-        .filter(Boolean)
-        .join(". ")
+      text
     });
   });
   sourceIdsByIncident.set(incidentIndex, documentIds);
@@ -49,7 +46,7 @@ observedNegatives.cases.forEach((entry, index) => {
     relevant: false,
     provenance: "observed_false_positive",
     url: entry.url,
-    text: [entry.title, entry.snippet, entry.targetBarrio].filter(Boolean).join(". ")
+    text: [entry.title, entry.snippet].filter(Boolean).join(". ")
   });
 });
 
@@ -75,6 +72,7 @@ const report = {
   benchmarkId: manifest.benchmarkId,
   ...result,
   limitations: manifest.limitations,
+  excludedDocuments,
   documents: documents.map(({ text, ...document }) => document)
 };
 
@@ -122,4 +120,3 @@ await fs.writeFile(outputMarkdownPath, `${markdown}\n`);
 console.log(markdown);
 console.log(`\nJSON: ${path.relative(root, outputJsonPath)}`);
 console.log(`Markdown: ${path.relative(root, outputMarkdownPath)}`);
-

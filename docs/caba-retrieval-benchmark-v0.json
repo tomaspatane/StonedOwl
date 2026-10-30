@@ -5,6 +5,7 @@
   "goldSource": "docs/caba-topic-verified-cases-2026-10-20.json",
   "observedNegativeSource": "tests/electricidad-audit-2026-10-06.json",
   "limitations": [
+    "Desde 2026-10-30 se indexan sólo títulos y estados textuales registrados: se quitaron resúmenes compartidos, lugares del gold y descripciones parafraseadas. Los resultados anteriores no son comparables.",
     "La muestra inicial contiene 8 incidentes verificados, no los 30 requeridos para elegir un método.",
     "El baseline vectorial usa TF-IDF local y no debe describirse como recuperación semántica.",
     "Los documentos relevantes provienen del mismo expediente humano usado para redactar las consultas; el resultado inicial sirve para validar el arnés, no para estimar rendimiento en producción.",
@@ -53,4 +54,3 @@
     }
   ]
 }
-

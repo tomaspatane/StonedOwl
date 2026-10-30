@@ -378,3 +378,17 @@ test('CLI logs only a static safe warning on an unavailable baseline', async t =
   assert.ok(!result.stderr.includes(env.GITHUB_TOKEN));
   await absent(outputPath);
 });
+
+
+
+test('rerun restores the latest attempt only when older names are duplicated', async t => {
+  const old = artifact(90, { id: 1089, created_at: '2026-10-20T17:05:00Z' });
+  const f = await fixture(t, {
+    runPages: [[run(90, { created_at: '2026-10-20T17:00:00Z' })]],
+    metadata: id => run(id, { created_at: '2026-10-20T17:00:00Z', run_attempt: 2 }),
+    artifactPages: [[old, artifact(90)]]
+  });
+  const result = await restorePreviousTopics(f.options);
+  assert.equal(result.artifactId, 1090);
+  assert.equal(downloadCalls(f).length, 1);
+});

@@ -1,6 +1,12 @@
 const DEFAULT_K = 10;
 const RRF_K = 60;
 
+// Keep case labels, shared summaries and analyst descriptions out of the index.
+// visible_status is a recorded source observation; description may be a paraphrase.
+export function sourceDocumentText(source) {
+  return [source.title, source.visible_status].filter(Boolean).join(". ");
+}
+
 const STOPWORDS = new Set([
   "a", "al", "ante", "bajo", "con", "contra", "de", "del", "desde", "dos", "el", "en",
   "entre", "es", "esta", "este", "la", "las", "lo", "los", "para", "por", "que", "se",
@@ -17,7 +23,9 @@ export function normalizeText(value) {
 }
 
 export function tokenize(value) {
-  return normalizeText(value)
+  const normalized = normalizeText(value)
+    .replace(/\blinea ([abcdeh])\b/g, "linea linea_$1");
+  return normalized
     .split(/\s+/)
     .filter(token => token.length > 1 && !STOPWORDS.has(token));
 }
@@ -207,4 +215,3 @@ export function runRetrievalBenchmark({ documents, queries, k = DEFAULT_K, targe
     perQuery
   };
 }
-

@@ -3,7 +3,9 @@ import {
   fuseRankings,
   rankBm25,
   rankTfidfCosine,
-  runRetrievalBenchmark
+  runRetrievalBenchmark,
+  sourceDocumentText,
+  tokenize
 } from "../data/retrieval-benchmark.js";
 
 const documents = [
@@ -14,6 +16,9 @@ const documents = [
 
 assert.equal(rankBm25("paro subte", documents)[0].id, "subte");
 assert.equal(rankTfidfCosine("contenedor San Cristóbal", documents)[0].id, "basura");
+assert.notDeepEqual(tokenize("Línea A"), tokenize("Línea B"), "preservar identificadores de una letra");
+assert.equal(sourceDocumentText({ title: "Texto propio", description: "resumen del analista", summary: "gold", place: "gold" }), "Texto propio");
+assert.equal(sourceDocumentText({ description: "paráfrasis sin captura textual" }), "");
 
 const fused = fuseRankings([
   [{ id: "a", score: 2 }, { id: "b", score: 1 }],
@@ -42,4 +47,3 @@ assert.equal(report.byQueryType.hecho.recommendedMethod, null);
 assert.equal(report.byQueryType.hecho.recommendationStatus, "blocked_insufficient_sample");
 
 console.log("retrieval benchmark tests passed");
-

@@ -45,8 +45,9 @@ function spanMs(span) {
 
 function withinSpan(date, span) {
   const ms = Date.parse(date || '');
-  if (!Number.isFinite(ms)) return true;
-  return Date.now() - ms <= spanMs(span) + 3600000;
+  if (!Number.isFinite(ms)) return false;
+  const age = Date.now() - ms;
+  return age >= 0 && age <= spanMs(span);
 }
 
 export function parseRedditAtom(xml = '', subreddit = 'unknown', span = '1d') {
@@ -86,25 +87,56 @@ async function fetchOne(subreddit, span, fetchImpl) {
     }
   });
   const raw = await response.text();
-  if (!response.ok) throw new Error(`Reddit r/${subreddit} HTTP ${response.status}: ${raw.slice(0, 160)}`);
+  if (!response.ok) throw Object.assign(new Error(`Reddit r/${subreddit} HTTP ${response.status}`), {
+    status: response.status, retryAfter: response.headers?.get?.('retry-after') || null
+  });
   if (!/<feed(?:\s|>)/i.test(raw) || !/<\/feed>/i.test(raw)) throw new Error('Reddit no devolvió un feed Atom válido');
   return { subreddit, url: url.toString(), articles: parseRedditAtom(raw, subreddit, span) };
 }
 
-export async function fetchRedditElectricidad(span = '1d', fetchImpl = fetch) {
-  const settled = await Promise.allSettled(SUBREDDITS.map((subreddit) => fetchOne(subreddit, span, fetchImpl)));
+export function redditRetryDelay(value, now = Date.now()) {
+  if (!value) return 2000;
+  if (/^\d+$/.test(value)) return Number(value) * 1000;
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.max(0, date - now) : 2000;
+}
+
+// One request at a time, at most one retry. A provider block stops the batch;
+// skipped requests remain explicit missing coverage, never valid empty feeds.
+export async function fetchRedditElectricidad(span = '1d', fetchImpl = fetch, {
+  sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), now = Date.now
+} = {}) {
   const articles = [];
   const diagnostics = {};
-
-  settled.forEach((result, index) => {
-    const subreddit = SUBREDDITS[index];
-    if (result.status === 'fulfilled') {
-      articles.push(...result.value.articles);
-      diagnostics[subreddit] = { ok: true, count: result.value.articles.length, url: result.value.url };
-    } else {
-      diagnostics[subreddit] = { ok: false, error: String(result.reason?.message || result.reason) };
+  let blocked = null;
+  for (const subreddit of SUBREDDITS) {
+    if (blocked) {
+      diagnostics[subreddit] = { ok: false, code: 'provider_cooldown', ...blocked, attempted: false };
+      continue;
     }
-  });
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const result = await fetchOne(subreddit, span, fetchImpl);
+        articles.push(...result.articles);
+        diagnostics[subreddit] = { ok: true, count: result.articles.length, url: result.url, attempts: attempt };
+        break;
+      } catch (error) {
+        const delay = redditRetryDelay(error.retryAfter, now());
+        if (error.status === 429 && attempt === 1 && Number.isFinite(delay) && delay <= 10000) {
+          await sleep(delay);
+          continue;
+        }
+        const code = error.status === 429 ? 'rate_limited' : error.status === 403 ? 'access_denied' : 'request_failed';
+        diagnostics[subreddit] = { ok: false, code, httpStatus: error.status || null, attempts: attempt, error: String(error.message || error) };
+        if (error.status === 429 || error.status === 403) {
+          const retryAt = Math.min(8.64e15, now() + Math.max(60000, Number.isFinite(delay) ? delay : 86400000));
+          blocked = { httpStatus: error.status, retryAt: new Date(retryAt).toISOString(), error: 'Reddit coverage unavailable after provider block' };
+          Object.assign(diagnostics[subreddit], { retryAt: blocked.retryAt });
+        }
+        break;
+      }
+    }
+  }
 
   const seen = new Set();
   const deduped = articles.filter((article) => {
@@ -116,3 +148,4 @@ export async function fetchRedditElectricidad(span = '1d', fetchImpl = fetch) {
 
   return { articles: deduped, diagnostics, query: ELECTRIC_QUERY };
 }
+

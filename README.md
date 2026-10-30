@@ -102,3 +102,11 @@ Esta expansión incorpora un job de captura y artifacts a CI del PR; no cambia h
 `npm run benchmark:retrieval` compara tres recuperadores sobre los expedientes humanos disponibles: BM25, un baseline vectorial TF-IDF con similitud coseno y una fusión RRF. Escribe el detalle trazable en `tmp/retrieval-benchmark-report.json` y un resumen en `tmp/retrieval-benchmark-report.md`; no cambia el runtime, el ranking editorial ni los umbrales del radar.
 
 El manifiesto `docs/caba-retrieval-benchmark-v0.json` exige 30 incidentes verificados antes de habilitar una comparación concluyente. La versión inicial reutiliza los ocho casos revisados del 20 de octubre y tres falsos positivos observados en la auditoría de Electricidad. Mientras falten casos, el resultado queda explícitamente en `insufficient_sample`: sirve para validar el arnés y registrar qué documentos pierde la fusión, no para declarar un ganador. TF-IDF es un baseline vectorial local, no un modelo de embeddings semánticos.
+
+Desde el 30 de octubre, el índice usa solamente títulos/estados textuales registrados. Se eliminaron resúmenes del caso, lugares anotados y paráfrasis compartidas que podían inflar la recuperación. Las fuentes sin texto registrado se excluyen y se informan en `excludedDocuments`; Línea A y Línea B conservan identificadores distintos al tokenizar.
+
+## Piloto de comparación entre fuentes
+
+`npm run benchmark:narratives` ejecuta el piloto gratuito y local sobre diez titulares reales del subte. Extrae actor explícito, acción, objeto, alcance y estado con referencias al fragmento exacto de cada fuente. Produce candidatos por pares y diferencias de énfasis léxico; los cambios de estado y la información insuficiente quedan para revisión. El informe queda en `tmp/narrative-pilot-report.json`.
+
+Para otra muestra: `npm run benchmark:narratives -- /ruta/input.json`. El formato y sus límites están en [docs/narrative-pilot-2026-10-30.md](docs/narrative-pilot-2026-10-30.md). Es una evaluación aislada: aún no alimenta el runtime ni modifica alertas o agrupaciones. Las métricas describen una muestra de desarrollo de tres episodios, sin elección automática de ganador.

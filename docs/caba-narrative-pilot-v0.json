@@ -1,0 +1,81 @@
+{
+  "version": "caba-narratives-v0",
+  "reviewedAt": "2026-10-30",
+  "annotationProvenance": "assistant_review_of_original_articles_not_independent_human_gold",
+  "threshold": 0.35,
+  "limitations": [
+    "Diez titulares reales de dos medios, tres episodios y cinco etapas. Muestra de desarrollo, no evaluación independiente ni representativa.",
+    "Sólo se conserva el titular original. Falta cuerpo completo y evidencia explícita de fecha del hecho; la fecha de publicación sólo acota candidatos.",
+    "Las reglas se desarrollaron viendo esta muestra. Las métricas sólo describen el piloto; no demuestran mejora en producción.",
+    "Los medios citan comunicados compartidos; la coincidencia no establece corroboración independiente.",
+    "El titular de restablecimiento de El Abasto fue comprobado en su republicación atribuida en CEMBA: el acceso directo falló. No se cuenta CEMBA como otra fuente.",
+    "Se evalúa coincidencia de episodio Y etapa. Un anuncio y su cancelación pertenecen al mismo episodio pero no son duplicados de la misma etapa.",
+    "Actor se extrae sólo cuando es sujeto explícito de un verbo soportado. El resto queda vacío. Lugar representa alcance de servicio, no geocodificación.",
+    "Framing significa énfasis léxico observable en el titular, no ideología, intención, veracidad ni análisis narrativo completo."
+  ],
+  "documents": [
+    {
+      "id": "a-announcement-pc", "publisher": "Pura Ciudad", "publicationDate": "2026-10-05",
+      "url": "https://www.puraciudad.com.ar/metrodelegados-anunciaron-un-paro-en-la-linea-a-de-subtes/",
+      "text": "Metrodelegados anunciaron un paro en la Línea A de subtes"
+    },
+    {
+      "id": "a-announcement-abasto", "publisher": "Revista El Abasto", "publicationDate": "2026-10-05",
+      "url": "https://www.revistaelabasto.com.ar/paro-en-la-linea-a-de-subtes-impacto-en-almagro-y-balvanera-este-martes-desde-las-19/",
+      "text": "Paro en la Línea A de subtes, impacto en Almagro y Balvanera: este martes desde las 19"
+    },
+    {
+      "id": "a-ended-pc", "publisher": "Pura Ciudad", "publicationDate": "2026-10-06",
+      "url": "https://www.puraciudad.com.ar/levantaron-el-paro-de-la-linea-a-de-subtes/",
+      "text": "Levantaron el paro de la Línea A de subtes"
+    },
+    {
+      "id": "a-ended-abasto", "publisher": "Revista El Abasto", "publicationDate": "2026-10-06",
+      "url": "https://www.revistaelabasto.com.ar/levantaron-el-paro-de-subtes-en-la-linea-a/",
+      "text": "Levantaron el paro de subtes en la Línea A"
+    },
+    {
+      "id": "network-strike-pc", "publisher": "Pura Ciudad", "publicationDate": "2026-10-20",
+      "url": "https://www.puraciudad.com.ar/paro-sorpresivo-de-subtes-tras-la-detencion-de-trabajadores-y-delegados/",
+      "text": "Paro sorpresivo de subtes tras la detención de trabajadores y delegados"
+    },
+    {
+      "id": "network-strike-abasto", "publisher": "Revista El Abasto", "publicationDate": "2026-10-20",
+      "url": "https://www.revistaelabasto.com.ar/paro-total-de-subtes-y-premetro-por-la-detencion-de-trabajadores/",
+      "text": "Paro total de subtes y Premetro por la detención de trabajadores"
+    },
+    {
+      "id": "network-restored-pc", "publisher": "Pura Ciudad", "publicationDate": "2026-10-20",
+      "url": "https://www.puraciudad.com.ar/todas-las-lineas-de-subte-y-premetro-retomaron-el-servicio-tras-el-paro-de-metrodelegados/",
+      "text": "Todas las líneas de subte y Premetro retomaron el servicio tras el paro de metrodelegados"
+    },
+    {
+      "id": "network-restored-abasto", "publisher": "Revista El Abasto", "publicationDate": "2026-10-20",
+      "url": "https://www.revistaelabasto.com.ar/se-levanto-la-medida-gremial-y-funcionan-todas-las-lineas-de-subte-y-el-premetro/",
+      "retrievedFrom": "https://cemba.com.ar/se-levanto-la-medida-gremial-y-funcionan-todas-las-lineas-de-subte-y-el-premetro/",
+      "text": "Se levantó la medida gremial y funcionan todas las líneas de subte y el Premetro"
+    },
+    {
+      "id": "h-hours-pc", "publisher": "Pura Ciudad", "publicationDate": "2026-10-19",
+      "url": "https://www.puraciudad.com.ar/la-linea-h-del-subte-extendera-su-horario-por-los-recitales-de-iron-maiden-en-huracan/",
+      "text": "La Línea H del subte extenderá su horario por los recitales de Iron Maiden en Huracán"
+    },
+    {
+      "id": "h-hours-abasto", "publisher": "Revista El Abasto", "publicationDate": "2026-10-19",
+      "url": "https://www.revistaelabasto.com.ar/la-estacion-once-de-la-linea-h-estara-abierta-de-madrugada-por-los-recitales-de-iron-maiden/",
+      "text": "La estación Once de la Línea H estará abierta de madrugada por los recitales de Iron Maiden"
+    }
+  ],
+  "labels": {
+    "a-announcement-pc": { "episode": "line-a-oct6", "stage": "announcement" },
+    "a-announcement-abasto": { "episode": "line-a-oct6", "stage": "announcement" },
+    "a-ended-pc": { "episode": "line-a-oct6", "stage": "cancellation" },
+    "a-ended-abasto": { "episode": "line-a-oct6", "stage": "cancellation" },
+    "network-strike-pc": { "episode": "network-oct20", "stage": "strike" },
+    "network-strike-abasto": { "episode": "network-oct20", "stage": "strike" },
+    "network-restored-pc": { "episode": "network-oct20", "stage": "restored" },
+    "network-restored-abasto": { "episode": "network-oct20", "stage": "restored" },
+    "h-hours-pc": { "episode": "line-h-concerts-oct20-21", "stage": "announcement" },
+    "h-hours-abasto": { "episode": "line-h-concerts-oct20-21", "stage": "announcement" }
+  }
+}
