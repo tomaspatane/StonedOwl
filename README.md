@@ -2,6 +2,10 @@
 
 Radar de problemas de CABA para construir agenda pública y cuestionar la gestión con evidencia.
 
+## Piloto de X con OpenAI
+
+`npm run capture:x -- --live` permite una búsqueda acotada de publicaciones públicas indexadas de X, usando una clave `OPENAI_API_KEY` de la organización con créditos. Produce pistas con enlaces para revisión en `tmp/x-openai-report.md` y JSON; no modifica alertas ni activa consultas periódicas. Sin clave o sin `--live` no consume API. Configuración, límites de consumo y diferencias respecto de la API de X: [guía del piloto](docs/x-openai-pilot.md).
+
 ## Objetivo de producto — 8 de octubre de 2026
 
 Entregar casos concretos para trabajo de comunicación política: qué sucede, dónde, cuándo, qué fuente lo documenta, qué respuesta se puede exigir y qué responsabilidad falta establecer. Un episodio aislado puede ser relevante; no necesita una tendencia ni un color alto para aparecer.
