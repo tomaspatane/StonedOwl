@@ -2,6 +2,10 @@
 
 Radar de problemas de CABA para construir agenda pública y cuestionar la gestión con evidencia.
 
+## Informe CABA con OpenAI
+
+`npm run research:caba -- --live` investiga vivienda, salud, transporte, servicios y obras en medios locales y fuentes oficiales, sin depender de X. Genera hasta cinco fichas con enlaces, ubicación propuesta, estado temporal y próximo chequeo. Requiere `OPENAI_API_KEY`; cada ejecución hace una solicitud acotada y guarda su reporte fechado. [Activación y primera validación real](docs/caba-openai-research.md). La salida es un borrador para revisión, separado de las alertas del mapa y de los colectores RSS.
+
 ## Piloto de X con OpenAI
 
 `npm run capture:x -- --live` permite una búsqueda acotada de publicaciones públicas indexadas de X, usando una clave `OPENAI_API_KEY` de la organización con créditos. Produce pistas con enlaces para revisión en `tmp/x-openai-report.md` y JSON; no modifica alertas ni activa consultas periódicas. Sin clave o sin `--live` no consume API. Configuración, límites de consumo y diferencias respecto de la API de X: [guía del piloto](docs/x-openai-pilot.md).
